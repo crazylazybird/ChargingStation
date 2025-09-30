@@ -1,6 +1,10 @@
 #include "main.h"
 
-uint16_t calculateCRC16(const uint8_t* data, uint16_t length) {
+// Буфер для хранения принятных сообщений для последующей обработки
+extern uint8_t receiveBuffer[BUFFER_SIZE]; 
+extern int bufferIndex;
+
+uint16_t calculate_CRC16(const uint8_t* data, uint16_t length) {
   static const uint16_t crc16_ccitt_table[256] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
     0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
@@ -45,7 +49,7 @@ uint16_t calculateCRC16(const uint8_t* data, uint16_t length) {
 }
 
 
-void calculateCRC(const String& hexString) {
+void calculate_CRC(const String& hexString) {
   String cleanHex = hexString;  // Создаем копию
   cleanHex.replace(" ", "");    // Удаляем пробелы
 
@@ -65,7 +69,7 @@ void calculateCRC(const String& hexString) {
   }
 
   // Рассчитываем CRC
-  uint16_t crc = calculateCRC16(data, pos);
+  uint16_t crc = calculate_CRC16(data, pos);
 
   // Выводим результат
   UART0_DEBUG_PORT.print("Исходная HEX-строка: ");
@@ -79,13 +83,25 @@ void calculateCRC(const String& hexString) {
 }
 
 // Вспомогательная функция для быстрого преобразования HEX
-byte hexCharToByte(char c) {
+byte hex_char_to_byte(char c) {
   if (c >= '0' && c <= '9') return c - '0';
   if (c >= 'A' && c <= 'F') return c - 'A' + 10;
   if (c >= 'a' && c <= 'f') return c - 'a' + 10;
   return 0;
 }
 
-byte convertHexStringToByte(const String& hexStr) {
+byte convert_hex_string_to_byte(const String& hexStr) {
   return (byte)(strtol(hexStr.c_str(), NULL, 16));
+}
+
+void clear_buffer() {
+  // Очищаем буфер приема
+  memset(receiveBuffer, 0, BUFFER_SIZE);
+
+  // Сбрасываем индекс буфера
+  bufferIndex = 0;
+
+  // Дополнительно можно добавить:
+  UART0_DEBUG_PORT.println("Буфер очищен");
+  UART0_DEBUG_PORT.println("-----------------------------------------------");
 }
