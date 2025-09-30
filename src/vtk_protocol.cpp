@@ -92,6 +92,7 @@ byte* create_VTK_message(const std::string& messageName, int operationNumber, in
   uint16_t crc = calculate_CRC16(message, messageLength);
   message[messageLength] = static_cast<byte>(crc >> 8);
   message[messageLength + 1] = static_cast<byte>(crc & 0xFF);
+  
 
   //отладочный вывод в порт USB
   //   USB_PORT.print("сформировано ");
