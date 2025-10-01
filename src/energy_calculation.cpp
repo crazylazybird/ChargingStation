@@ -8,7 +8,7 @@ float energyTotal = 0.0; // Общее потребление энергии
 
 SoftwareSerial SOFTSERIAL_ENERGY_PORT(RX2_PIN, TX2_PIN); //для связи с энергосчетчика
 
-void process_received2_data() {
+void process_received_energy_data() {
     //static const int BUFFER_SIZE = 256;
     static byte buffer[BUFFER_SIZE];
     static int bufferIndex = 0;

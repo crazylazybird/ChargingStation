@@ -10,8 +10,7 @@
 
 #define BUFFER_SIZE 256
 
-#define RX2_PIN 20 //для связи с энергосчетчика
-#define TX2_PIN 21
+
 
 void UART_Setup();
 void UART_Commands_processing();
