@@ -5,6 +5,8 @@ bool paymentInProgress = false;
 unsigned long paymentStartTime = 0;
 int requestedAmount = 0;
 
+bool failedPaymentFlag = false;
+
 extern volatile int operationNumber;
 extern uint8_t receiveBuffer[BUFFER_SIZE];
 extern int bufferIndex;
@@ -15,6 +17,9 @@ extern const int OPERATION_NUMBER_LENGTH = 8;  // Длина номера опе
 extern const int MAX_OPERATION_NUMBER = 65535;
 extern const int MIN_MESSAGE_SIZE = 10;
 
+extern float power; // Мощность
+extern float energyTotal; // Общее потребление энергии
+
 const byte START_BYTE = 0x1F;                       // Стартовый байт
 const byte PROTOCOL_DISCRIMINATOR_HIGH = 0x96;      // Дискриминатор протокола (старшие биты)
 const byte PROTOCOL_DISCRIMINATOR_POS_HIGH = 0x97;  // Дискриминатор протокола (старшие биты)
@@ -22,6 +27,13 @@ const byte PROTOCOL_DISCRIMINATOR_LOW = 0xFB;       // Дискриминато�
 const byte MESSAGE_ID_IDL = 0x01;                   // ID сообщения IDL
 
 int amountLength;
+
+// Переменные состояния потребления энергии
+bool chargingStartedFlag;
+unsigned long chargingStartTime = 0;
+const unsigned long PAYMENT_FOR_CHARGING_TIMEOUT = 3000; //Таймаут при котором нужно запросить оплату за зярядке
+
+extern SoftwareSerial SOFTSERIAL_ENERGY_PORT;
 
 void start_payment(int amount) {
     if (paymentInProgress) {
@@ -231,12 +243,50 @@ void check_payment_status_(){
     clear_buffer();
 }
 
+bool isChargingStarted() {
+    static unsigned long chargingStartTime = 0;  // время включения флага
+    static bool wasCharging = false;             // предыдущее состояние
+
+    if (power > 100) {
+        if (!wasCharging) {
+            // Флаг только что стал true — запоминаем время
+            chargingStartTime = millis();
+            wasCharging = true;
+        }
+        // Проверяем, прошло ли больше 3 секунд
+        if (millis() - chargingStartTime >= 3000) {
+            return true;
+        }
+    } else {
+        // Если флаг сброшен — обнуляем контроль
+        wasCharging = false;
+    }
+
+    return false;
+}
+
+
+void handle_charging(){
+    static unsigned long failedPaymentRelayStartTime = 0;  // время включения флага
+    if(isChargingStarted()){
+        SOFTSERIAL_ENERGY_PORT.print("R ON");
+        send_VRP(1);
+    }
+    if(failedPaymentFlag == 1){
+        SOFTSERIAL_ENERGY_PORT.print("R OFF");
+        if (millis() - failedPaymentRelayStartTime >= 200) {
+            SOFTSERIAL_ENERGY_PORT.print("R ON");
+        }
+    }
+    
+}
 // Обработка успешного платежа
 void handleSuccessfulPayment() {
     UART0_DEBUG_PORT.println("Оплата успешно проведена");
     paymentInProgress = false;    
     requestedAmount = 0;
     send_FIN(requestedAmount);
+    SOFTSERIAL_ENERGY_PORT.print("R ON");
 }
 
 // Обработка ошибки платежа
@@ -244,11 +294,15 @@ void handleFailedPayment() {
     UART0_DEBUG_PORT.println("Ошибка при проведении оплаты");
     paymentInProgress = false;
     requestedAmount = 0;
+    failedPaymentFlag = 1;
+    //Отправить разрыв реле
 }
 
 // Обработка таймаута
 void handlePaymentTimeout() {
     UART0_DEBUG_PORT.println("Превышено время ожидания оплаты");
     paymentInProgress = false;
-    requestedAmount = 0;
+    requestedAmount = 0;  
+    failedPaymentFlag = 1;  
+    //Отправить разрыв реле
 }

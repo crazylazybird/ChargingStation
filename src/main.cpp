@@ -19,4 +19,5 @@ void loop() {
     //check_payment_status();
     check_payment_status_();
     process_received_energy_data();
+    handle_charging();
 }

@@ -10,3 +10,4 @@ void handleSuccessfulPayment();
 void handleFailedPayment();
 void handlePaymentTimeout();
 void check_payment_status_();
+void handle_charging();

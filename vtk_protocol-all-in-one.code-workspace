@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"path": "../vtk_protocol-all-in-one"
+		},
+		{
+			"name": "ChargingStation",
+			"path": "../../../../../My Drive/DOMINION/ChargingStation"
+		},
+		{
+			"name": "1",
+			"path": "C:/Users/crazy/OneDrive/Documents/PlatformIO/Projects/1"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"map": "cpp",
+			"array": "cpp",
+			"deque": "cpp",
+			"string": "cpp",
+			"unordered_map": "cpp",
+			"unordered_set": "cpp",
+			"vector": "cpp",
+			"string_view": "cpp",
+			"initializer_list": "cpp"
+		}
+	}
+}

@@ -25,10 +25,12 @@ const byte START_BYTE = 0x1F;                       // Стартовый бай
 const unsigned long IDL_INTERVAL = 3000; // Интервал в 10 секунд для IDLE
 int message_counter = 1;                 // Счетсчик сообщений
 
+SoftwareSerial SOFTSERIAL_ENERGY_PORT(RX2_PIN, TX2_PIN); //для связи с энергосчетчика
+
 void UART_Setup(){
     UART0_DEBUG_PORT.begin(UART0_DEBUG_PORT_BAUDRATE);
     UART1_VMC_PORT.begin(UART1_VMC_PORT_BAUDRATE, SERIAL_8N1, UART1_VMC_PORT_RX_PIN, UART1_VMC_PORT_TX_PIN); //настройка порта UART1 - для Vendotek
-    
+    SOFTSERIAL_ENERGY_PORT.begin(9600);
 
     while (!UART0_DEBUG_PORT || !UART1_VMC_PORT) {
         UART0_DEBUG_PORT.println("Порты не инициализируются");

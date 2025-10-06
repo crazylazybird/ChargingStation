@@ -1,8 +1,8 @@
 #pragma once
 #include "main.h"
 
-#define RX2_PIN 20 //для связи с энергосчетчика
-#define TX2_PIN 21
+#define RX2_PIN 21 //для связи с энергосчетчика
+#define TX2_PIN 20
 
 
 void process_received_energy_data();
