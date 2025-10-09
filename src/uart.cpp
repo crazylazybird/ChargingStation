@@ -27,10 +27,13 @@ int message_counter = 1;                 // Счетсчик сообщений
 
 SoftwareSerial SOFTSERIAL_ENERGY_PORT(RX2_PIN, TX2_PIN); //для связи с энергосчетчика
 
+tlv recievedTLV;
+
 void UART_Setup(){
     UART0_DEBUG_PORT.begin(UART0_DEBUG_PORT_BAUDRATE);
     UART1_VMC_PORT.begin(UART1_VMC_PORT_BAUDRATE, SERIAL_8N1, UART1_VMC_PORT_RX_PIN, UART1_VMC_PORT_TX_PIN); //настройка порта UART1 - для Vendotek
     SOFTSERIAL_ENERGY_PORT.begin(9600);
+    SOFTSERIAL_ENERGY_PORT.print("R OFF");
 
     while (!UART0_DEBUG_PORT || !UART1_VMC_PORT) {
         UART0_DEBUG_PORT.println("Порты не инициализируются");
@@ -70,139 +73,101 @@ void UART_VMT_recieved_data(){
 void process_received_data() {
   if (bufferIndex == 0) return;
 
-  // Формируем строку с принятыми байтами
-  String receivedBytes = "Принятые байты: ";
+  // 1) Минимальная длина: 1 (0x1F) + 2 (len) + 2 (proto) + 2 (CRC)
+  if (bufferIndex < 7) { clear_buffer(); return; }
+
+  // 2) Стартовый байт
+  if (receiveBuffer[0] != 0x1F) { clear_buffer(); return; }
+
+  // 3) Заголовок
+  uint16_t msgLen = (uint16_t(receiveBuffer[1]) << 8) | receiveBuffer[2];
+  uint16_t proto  = (uint16_t(receiveBuffer[3]) << 8) | receiveBuffer[4];
+
+  // Проверка, что весь кадр пришёл: 1 + 2 + msgLen + 2(CRC) == bufferIndex
+  // msgLen = длина "следующих данных, исключая CRC" => это 2(proto)+AppLen
+  if (1 + 2 + msgLen + 2 != bufferIndex) {
+    UART0_DEBUG_PORT.println("Ошибка: длина кадра не совпала");
+    clear_buffer(); return;
+  }
+
+  // 4) CRC
+  uint16_t rxCrc = (uint16_t(receiveBuffer[bufferIndex-2]) << 8) | receiveBuffer[bufferIndex-1];
+  uint16_t calcCrc = calculate_CRC16_ccitt(receiveBuffer, bufferIndex - 2);
+  if (rxCrc != calcCrc) { UART0_DEBUG_PORT.println("CRC error"); clear_buffer(); return; }
+
+  // 5) Проверка протокола: 0x97FB от POS, 0x96FB от VMC
+  if (proto != 0x97FB && proto != 0x96FB) {
+    UART0_DEBUG_PORT.println("Ошибка: неверный протокол"); // см. спецификацию
+  }
+
+  UART0_DEBUG_PORT.print("Сообщение в HEX: ");
   for (int i = 0; i < bufferIndex; i++) {
-    if (receiveBuffer[i] < 0x10) receivedBytes += "0";
-    receivedBytes += String(receiveBuffer[i], HEX);
-    receivedBytes += " ";
-  }
-  UART0_DEBUG_PORT.println(receivedBytes);
-
-  // Проверяем минимальную длину сообщения
-  if (bufferIndex < MIN_MESSAGE_SIZE) {
-    UART0_DEBUG_PORT.println("Ошибка: сообщение слишком короткое");
-    clear_buffer();
-    return;
-  }
-
-  // Проверяем стартовый байт
-  if (receiveBuffer[0] != START_BYTE) {
-    UART0_DEBUG_PORT.println("Ошибка: неверный стартовый байт");
-    clear_buffer();
-    return;
-  }
-
-  // Извлекаем поля сообщения
-  byte startByte = receiveBuffer[0];
-  byte reserved = receiveBuffer[1];
-  byte messageLength = receiveBuffer[2];
-  byte protocolHigh = receiveBuffer[3];
-  byte protocolLow = receiveBuffer[4];
-  byte messageID = receiveBuffer[5];
-  byte nameLength = receiveBuffer[6];
-
-  // Парсим имя сообщения
-  char messageName[4];
-  for (int i = 0; i < nameLength; i++) {
-    messageName[i] = receiveBuffer[7 + i];
-  }
-  messageName[nameLength] = '\0';
-
-
-  // // Добавляем проверку на ответ терминала
-  // if (messageName[0] == 'V' && messageName[1] == 'R' && messageName[2] == 'P') {
-  //     // Проверяем статус операции
-  //     if () {
-  //         handleSuccessfulPayment();
-  //     } else {
-  //         handleFailedPayment();
-  //     }
-  // }
-
-
-
-  // Проверяем протокол
-  if (protocolHigh != PROTOCOL_DISCRIMINATOR_POS_HIGH || protocolLow != PROTOCOL_DISCRIMINATOR_LOW) {
-    UART0_DEBUG_PORT.println("Ошибка: неверный протокол");
-  }
-
-  // Проверяем CRC16
-  uint16_t receivedCRC = (receiveBuffer[bufferIndex - 2] << 8) | receiveBuffer[bufferIndex - 1];
-  uint16_t calculatedCRC = calculate_CRC16(receiveBuffer, bufferIndex - 2);
-
-  if (receivedCRC != calculatedCRC) {
-    UART0_DEBUG_PORT.println("Ошибка: неверная CRC16");
-    clear_buffer();
-    return;
-  }
-
-  // Парсим номер операции (тег 0x03)
-  int opLength = 0;
-  //    int operationNumber = 0;
-  int payloadStart = 7 + nameLength;
-  if (payloadStart < bufferIndex - 2 && receiveBuffer[payloadStart] == 0x03) {
-    opLength = receiveBuffer[payloadStart + 1];
-    String opStr = "";
-    for (int i = 0; i < opLength; i++) {
-      opStr += char(receiveBuffer[payloadStart + 2 + i]);
-    }
-    operationNumber = opStr.toInt();
-  }
-
-  // Парсим сумму оплаты (тег 0x04)
-  int amount = 0;
-  int amountPos = payloadStart + 2 + opLength;
-  if (amountPos < bufferIndex - 2 && receiveBuffer[amountPos] == 0x04) {
-    int amountLength = receiveBuffer[amountPos + 1];
-    String amountStr = "";
-    for (int i = 0; i < amountLength; i++) {
-      amountStr += char(receiveBuffer[amountPos + 2 + i]);
-    }
-    amount = amountStr.toInt();
-  }
-
-  // Логируем результаты парсинга
-  UART0_DEBUG_PORT.print("Парсинг сообщения:\n");
-  UART0_DEBUG_PORT.print("Стартовый байт: 0x");
-  UART0_DEBUG_PORT.println(startByte, HEX);
-  UART0_DEBUG_PORT.print("Зарезервировано: 0x");
-  UART0_DEBUG_PORT.println(reserved, HEX);
-  UART0_DEBUG_PORT.print("Длина сообщения: ");
-  UART0_DEBUG_PORT.println(messageLength);
-  UART0_DEBUG_PORT.print("Протокол (H): 0x");
-  UART0_DEBUG_PORT.println(protocolHigh, HEX);
-  UART0_DEBUG_PORT.print("Протокол (L): 0x");
-  UART0_DEBUG_PORT.println(protocolLow, HEX);
-  UART0_DEBUG_PORT.print("ID сообщения: 0x");
-  UART0_DEBUG_PORT.println(messageID, HEX);
-  UART0_DEBUG_PORT.print("Длина имени: ");
-  UART0_DEBUG_PORT.println(nameLength);
-  UART0_DEBUG_PORT.print("Имя сообщения: ");
-  UART0_DEBUG_PORT.println(messageName);
-  UART0_DEBUG_PORT.print("Сумма оплаты: ");
-  UART0_DEBUG_PORT.print(amount / 100);
-  UART0_DEBUG_PORT.print("руб. ");
-  UART0_DEBUG_PORT.print(amount - ((amount / 100) * 100));
-  UART0_DEBUG_PORT.println("коп.");
-  UART0_DEBUG_PORT.print("номер операции: ");
-  UART0_DEBUG_PORT.println(operationNumber);
-  UART0_DEBUG_PORT.print("CRC проверен: 0x");
-  UART0_DEBUG_PORT.println(receivedCRC, HEX);
-
-  // Обработка полезной нагрузки
-  payloadStart = 7 + nameLength;
-  int payloadLength = bufferIndex - 2 - (7 + nameLength);
-
-  UART0_DEBUG_PORT.print("Полезная нагрузка: ");
-  for (int i = 0; i < payloadLength; i++) {
-    UART0_DEBUG_PORT.print(receiveBuffer[payloadStart + i], HEX);
+    if (receiveBuffer[i] < 0x10) UART0_DEBUG_PORT.print("0");
+    UART0_DEBUG_PORT.print(receiveBuffer[i], HEX);
     UART0_DEBUG_PORT.print(" ");
   }
   UART0_DEBUG_PORT.println();
+
+  // 6) TLV-парсинг
+  const int appStart = 5;                // после 1F + len(2) + proto(2)
+  const int appEnd   = bufferIndex - 2;  // до CRC
+
+  String msgName = "";
+  long operationNumber = -1;
+  long amount = -1;
+
+  for (int p = appStart; p < appEnd; ) {
+    uint8_t tag = receiveBuffer[p++];
+
+    // Длина по BER: для этих тегов (0x01,0x03,0x04) — один байт length
+    if (p >= appEnd) break;
+    uint8_t len = receiveBuffer[p++];
+
+    if (p + len > appEnd) { UART0_DEBUG_PORT.println("TLV выходит за границы"); break; }
+
+    switch (tag) {
+      case 0x01: { // Message name (ASCII, 3)
+        msgName = "";
+        for (int i=0;i<len;i++) msgName += char(receiveBuffer[p+i]);
+      } break;
+
+      case 0x03: { // Operation number (ASCII)
+        String s=""; for (int i=0;i<len;i++) s += char(receiveBuffer[p+i]);
+        operationNumber = s.toInt();
+      } break;
+
+      case 0x04: { // Amount
+        String s=""; for (int i=0;i<len;i++) s += char(receiveBuffer[p+i]);
+        amount = s.toInt();
+      } break;
+
+
+    }
+    p += len;
+  }
+
+
+  if (recievedTLV.isMesProcessed){
+    recievedTLV.amount = amount;
+    recievedTLV.mesName = msgName;
+    recievedTLV.isMesProcessed = false;
+    recievedTLV.lastTime = millis();
+  }
+
+  // 7) Лог
+  UART0_DEBUG_PORT.print("Имя: "); UART0_DEBUG_PORT.println(msgName);
+  if (amount >= 0) {
+    UART0_DEBUG_PORT.print("Сумма: "); 
+    UART0_DEBUG_PORT.print(amount/100); UART0_DEBUG_PORT.print(" руб "); 
+    UART0_DEBUG_PORT.print(amount%100); UART0_DEBUG_PORT.println(" коп");
+  }
+  if (operationNumber >= 0) {
+    UART0_DEBUG_PORT.print("Operation: "); UART0_DEBUG_PORT.println(operationNumber);
+  }
+
   clear_buffer();
-  // Очищаем буфер после обработки
 }
+
 
 /*
 ----------------------------------------------------------------
@@ -323,6 +288,66 @@ void send_message(byte* message, int messageLength){
 ----------------------------------------------------------------
 ----------------------------------------------------------------
 */
+
+// ---------- ОБРАБОТКА ----------
+void process_received_energy_data() {
+    static byte buffer[BUFFER_SIZE];
+    static int bufferIndex = 0;
+    static bool inPacket = false;
+
+    while (SOFTSERIAL_ENERGY_PORT.available() > 0) {
+        byte incomingByte = SOFTSERIAL_ENERGY_PORT.read();
+
+        if (!inPacket) {
+            // ждём маркер начала 0xAA 0x55
+            if (bufferIndex == 0 && incomingByte == 0xAA) {
+                buffer[bufferIndex++] = incomingByte;
+            } else if (bufferIndex == 1 && incomingByte == 0x55) {
+                buffer[bufferIndex++] = incomingByte;
+                inPacket = true;
+            } else {
+                bufferIndex = 0; // сброс, если начало не совпало
+            }
+        } else {
+            // внутри пакета
+            if (bufferIndex < BUFFER_SIZE) {
+                buffer[bufferIndex++] = incomingByte;
+            }
+
+            if (incomingByte == 0x0D) { // конец пакета
+                if (check_CRC(buffer, bufferIndex)) {
+                    parse_energy_data(buffer, bufferIndex);
+                } else {
+                    UART0_DEBUG_PORT.println("Ошибка CRC!");
+                }
+                bufferIndex = 0;
+                inPacket = false;
+            }
+        }
+    }
+    
+}
+
+#define STX1 0xAA
+#define STX2 0x55
+#define RX_MAX 128         // максимум полезной нагрузки
+
+void softserial_energy_port_send_command(const String& cmd) {
+  const uint16_t len = cmd.length();
+  if (len == 0 || len > RX_MAX) return;
+
+  // CRC по полезной нагрузке
+  uint16_t crc = calculate_CRC16((const uint8_t*)cmd.c_str(), len);
+
+  SOFTSERIAL_ENERGY_PORT.write(STX1);
+  SOFTSERIAL_ENERGY_PORT.write(STX2);
+  SOFTSERIAL_ENERGY_PORT.write((len >> 8) & 0xFF);
+  SOFTSERIAL_ENERGY_PORT.write(len & 0xFF);
+  SOFTSERIAL_ENERGY_PORT.print(cmd);                // PAYLOAD
+  SOFTSERIAL_ENERGY_PORT.write((crc >> 8) & 0xFF);  // CRC_H
+  SOFTSERIAL_ENERGY_PORT.write(crc & 0xFF);         // CRC_L
+}
+
 
 void send_HEX(const String& hexString) {
   static byte messageBuffer[256]; // Статический для повторного использования

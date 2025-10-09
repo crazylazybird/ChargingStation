@@ -26,7 +26,7 @@ byte* create_IDL_message(int messageLength) {
   message[9] = 'L';
 
   // Расчет CRC16
-  uint16_t crc = calculate_CRC16(message, messageLength);
+  uint16_t crc = calculate_CRC16_ccitt(message, messageLength);
   message[messageLength] = crc >> 8;
   message[messageLength + 1] = crc & 0xFF;
 
@@ -89,7 +89,7 @@ byte* create_VTK_message(const std::string& messageName, int operationNumber, in
     }
   }
 
-  uint16_t crc = calculate_CRC16(message, messageLength);
+  uint16_t crc = calculate_CRC16_ccitt(message, messageLength);
   message[messageLength] = static_cast<byte>(crc >> 8);
   message[messageLength + 1] = static_cast<byte>(crc & 0xFF);
   

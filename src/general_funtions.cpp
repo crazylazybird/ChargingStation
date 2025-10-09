@@ -4,7 +4,7 @@
 extern uint8_t receiveBuffer[BUFFER_SIZE]; 
 extern int bufferIndex;
 
-uint16_t calculate_CRC16(const uint8_t* data, uint16_t length) {
+uint16_t calculate_CRC16_ccitt(const uint8_t* data, uint16_t length) {
   static const uint16_t crc16_ccitt_table[256] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
     0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
@@ -49,6 +49,23 @@ uint16_t calculate_CRC16(const uint8_t* data, uint16_t length) {
 }
 
 
+// ---------- CRC16 ----------
+uint16_t calculate_CRC16(const uint8_t* data, int length) {
+    uint16_t crc = 0xFFFF;
+    for (int pos = 0; pos < length; pos++) {
+        crc ^= (uint16_t)data[pos];
+        for (int i = 0; i < 8; i++) {
+            if (crc & 0x0001) {
+                crc >>= 1;
+                crc ^= 0xA001;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    return crc;
+}
+
 void calculate_CRC(const String& hexString) {
   String cleanHex = hexString;  // Создаем копию
   cleanHex.replace(" ", "");    // Удаляем пробелы
@@ -69,7 +86,7 @@ void calculate_CRC(const String& hexString) {
   }
 
   // Рассчитываем CRC
-  uint16_t crc = calculate_CRC16(data, pos);
+  uint16_t crc = calculate_CRC16_ccitt(data, pos);
 
   // Выводим результат
   UART0_DEBUG_PORT.print("Исходная HEX-строка: ");

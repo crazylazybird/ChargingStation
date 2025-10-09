@@ -20,3 +20,13 @@ void send_message(byte* message, int messageLength);
 void process_received_data();
 void UART_VMT_recieved_data();
 void send_IDLE();
+void softserial_energy_port_send_command(const String& cmd);
+
+
+
+struct tlv {
+  String mesName;
+  int32_t amount;
+  unsigned long lastTime;
+  bool isMesProcessed;
+};

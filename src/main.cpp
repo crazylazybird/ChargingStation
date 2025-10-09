@@ -12,12 +12,8 @@ void setup(){
 
 
 void loop() {
-    UART_Commands_processing();
-    check_payment_status_();
+    UART_Commands_processing();    
     UART_VMT_recieved_data();
     send_IDLE();
-    //check_payment_status();
-    check_payment_status_();
     process_received_energy_data();
-    handle_charging();
 }
