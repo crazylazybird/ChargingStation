@@ -6,6 +6,7 @@
 void start_payment(int amount);
 
 void process_POS_received_data();
+void processing_received_POS_message();
 
 void handle_successful_payment();
 void handle_failed_payment();

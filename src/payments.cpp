@@ -20,7 +20,7 @@ const byte MESSAGE_ID_IDL = 0x01;                   // ID сообщения IDL
 
 
 
-tlv recievedTLV;
+tlv receivedTLV;
 tlv sentTLV;
 
 void start_payment(int amount) {
@@ -34,24 +34,24 @@ void start_payment(int amount) {
 }
 
 
-void processing_recieved_POS_message(){
+void processing_received_POS_message(){
     static int requestedAmount;
 
-    if((!recievedTLV.isMesProcessed) && (recievedTLV.mesName == "STA")){
-        start_payment(recievedTLV.amount);
-        recievedTLV.lastTime = millis();
-        recievedTLV.isMesProcessed = false;
+    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "STA")){
+        start_payment(receivedTLV.amount);
+        receivedTLV.lastTime = millis();
+        receivedTLV.isMesProcessed = false;
     }
-    if((!recievedTLV.isMesProcessed) && (recievedTLV.mesName == "VRP") && (millis() - recievedTLV.lastTime < 5000)){
-        start_payment(recievedTLV.amount);
-        requestedAmount = recievedTLV.amount;
-        recievedTLV.lastTime = millis();
-        recievedTLV.isMesProcessed = false;
+    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "VRP") && (millis() - receivedTLV.lastTime < 5000)){
+        start_payment(receivedTLV.amount);
+        requestedAmount = receivedTLV.amount;
+        receivedTLV.lastTime = millis();
+        receivedTLV.isMesProcessed = false;
     }
-    if((!recievedTLV.isMesProcessed) && (recievedTLV.mesName == "IDL") && (millis() - recievedTLV.lastTime < 5000) && (requestedAmount == recievedTLV.amount)){
-        start_payment(recievedTLV.amount);
-        recievedTLV.isMesProcessed = false;
-        recievedTLV.lastTime = millis();
+    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "IDL") && (millis() - receivedTLV.lastTime < 5000) && (requestedAmount == receivedTLV.amount)){
+        start_payment(receivedTLV.amount);
+        receivedTLV.isMesProcessed = false;
+        receivedTLV.lastTime = millis();
         handle_successful_payment();
     } else {
         handle_failed_payment();
@@ -137,11 +137,11 @@ void process_POS_received_data() {
   }
 
 
-  if (recievedTLV.isMesProcessed){
-    recievedTLV.amount = amount;
-    recievedTLV.mesName = msgName;
-    recievedTLV.isMesProcessed = false;
-    recievedTLV.lastTime = millis();
+  if (receivedTLV.isMesProcessed){
+    receivedTLV.amount = amount;
+    receivedTLV.mesName = msgName;
+    receivedTLV.isMesProcessed = false;
+    receivedTLV.lastTime = millis();
   }
 
   UART0_DEBUG_PORT.print("Имя: "); UART0_DEBUG_PORT.println(msgName);

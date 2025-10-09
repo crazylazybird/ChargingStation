@@ -13,7 +13,8 @@ void setup(){
 
 void loop() {
     UART_Commands_processing();    
-    UART_POS_recieved_data();
+    UART_POS_received_data();
     send_IDLE();
     process_received_energy_data();
+    processing_received_POS_message();
 }

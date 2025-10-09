@@ -66,6 +66,17 @@ uint16_t calculate_CRC16(const uint8_t* data, int length) {
     return crc;
 }
 
+bool check_CRC(const uint8_t* data, int length) {
+    if (length < 6) return false; // слишком короткий пакет
+
+    int dataLen = length - 3; // исключаем CRC (2 байта) и 0x0D
+    uint16_t expectedCRC = (data[length - 3] << 8) | data[length - 2];
+    uint16_t receivedCRC = calculate_CRC16(data, dataLen);
+
+    return expectedCRC == receivedCRC;
+}
+
+
 void calculate_CRC(const String& hexString) {
   String cleanHex = hexString;  // Создаем копию
   cleanHex.replace(" ", "");    // Удаляем пробелы

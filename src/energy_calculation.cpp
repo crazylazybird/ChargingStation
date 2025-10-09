@@ -9,16 +9,6 @@ float energyTotal = 0.0; // Общее потребление энергии
 
 
 
-bool check_CRC(const uint8_t* data, int length) {
-    if (length < 6) return false; // слишком короткий пакет
-
-    int dataLen = length - 3; // исключаем CRC (2 байта) и 0x0D
-    uint16_t expectedCRC = (data[length - 3] << 8) | data[length - 2];
-    uint16_t receivedCRC = calculate_CRC16(data, dataLen);
-
-    return expectedCRC == receivedCRC;
-}
-
 
 // ---------- BCD -> DEC ----------
 int bcd2dec(byte bcd) {

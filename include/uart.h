@@ -18,9 +18,10 @@ void send_HEX(const String& hexString);
 void decode_HEX(const String& hexString);
 void send_message(byte* message, int messageLength);
 void process_received_data();
-void UART_POS_recieved_data();
+void UART_POS_received_data();
 void send_IDLE();
 void softserial_energy_port_send_command(const String& cmd);
+void process_received_energy_data();
 
 
 

@@ -5,8 +5,7 @@
 #define TX2_PIN 20
 
 
-void process_received_energy_data();
-bool check_CRC(const uint8_t* data, int length);
+
 void parse_energy_data(byte* data, int length);
 int bcd2dec(byte bcd);
 int bcd2dec(byte high, byte low);

@@ -48,7 +48,7 @@ void UART_Setup(){
 ----------------------------------------------------------------
 */
 
-void UART_POS_recieved_data(){
+void UART_POS_received_data(){
     while (UART1_VMC_PORT.available() > 0) {
     if (bufferIndex < BUFFER_SIZE) {
       receiveBuffer[bufferIndex++] = UART1_VMC_PORT.read();
