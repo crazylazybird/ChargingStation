@@ -16,5 +16,6 @@ void loop() {
     UART_POS_received_data();
     send_IDLE();
     process_received_energy_data();
+    //process_POS_received_data();
     processing_received_POS_message();
 }

@@ -31,11 +31,11 @@ SoftwareSerial SOFTSERIAL_ENERGY_PORT(RX2_PIN, TX2_PIN); //для связи с 
 
 void UART_Setup(){
     UART0_DEBUG_PORT.begin(UART0_DEBUG_PORT_BAUDRATE);
-    UART1_VMC_PORT.begin(UART1_VMC_PORT_BAUDRATE, SERIAL_8N1, UART1_VMC_PORT_RX_PIN, UART1_VMC_PORT_TX_PIN); //настройка порта UART1 - для Vendotek
+    UART1_POS_PORT.begin(UART1_POS_PORT_BAUDRATE, SERIAL_8N1, UART1_POS_PORT_RX_PIN, UART1_POS_PORT_TX_PIN); //настройка порта UART1 - для Vendotek
     SOFTSERIAL_ENERGY_PORT.begin(9600);
     SOFTSERIAL_ENERGY_PORT.print("R OFF");
 
-    while (!UART0_DEBUG_PORT || !UART1_VMC_PORT) {
+    while (!UART0_DEBUG_PORT || !UART1_POS_PORT) {
         UART0_DEBUG_PORT.println("Порты не инициализируются");
         delay(1000);
     }
@@ -49,17 +49,17 @@ void UART_Setup(){
 */
 
 void UART_POS_received_data(){
-    while (UART1_VMC_PORT.available() > 0) {
-    if (bufferIndex < BUFFER_SIZE) {
-      receiveBuffer[bufferIndex++] = UART1_VMC_PORT.read();
-      lastRXTime = millis();
-    } else {
-      UART0_DEBUG_PORT.println("Ошибка: буфер переполнен!");
-      bufferIndex = 0;
+    while (UART1_POS_PORT.available() > 0) {
+      if (bufferIndex < BUFFER_SIZE) {
+        receiveBuffer[bufferIndex++] = UART1_POS_PORT.read();
+        lastRXTime = millis();
+      } else {
+        UART0_DEBUG_PORT.println("Ошибка: буфер переполнен!");
+        bufferIndex = 0;
+      }
     }
-  }
 
-    if (bufferIndex > 0 && ((millis() - lastRXTime) > 100)) {
+  if (bufferIndex > 0 && ((millis() - lastRXTime) > 100)) {
       process_POS_received_data();
       bufferIndex = 0;
   }
@@ -175,7 +175,7 @@ void send_IDLE(){
 
 void send_message(byte* message, int messageLength){
     
-  UART1_VMC_PORT.write(message, messageLength);
+  UART1_POS_PORT.write(message, messageLength);
 
   UART0_DEBUG_PORT.print("Отправлено: ");
   for (int i = 0; i < messageLength; i++) {
@@ -297,7 +297,7 @@ void send_HEX(const String& hexString) {
   UART0_DEBUG_PORT.print("Отправка HEX: ");
   UART0_DEBUG_PORT.println(hexString);
   
-  UART1_VMC_PORT.write(messageBuffer, bufferIndex);
+  UART1_POS_PORT.write(messageBuffer, bufferIndex);
   
   UART0_DEBUG_PORT.print("Отправлено: ");
   for (size_t i = 0; i < bufferIndex; i++) {

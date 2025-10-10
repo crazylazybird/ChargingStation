@@ -7,7 +7,6 @@ extern volatile int operationNumber;
 extern uint8_t receiveBuffer[BUFFER_SIZE];
 extern int bufferIndex;
 
-
 extern float power; // Мощность
 extern float energyTotal; // Общее потребление энергии
 
@@ -18,15 +17,14 @@ const byte PROTOCOL_DISCRIMINATOR_LOW = 0xFB;       // Дискриминато�
 const byte MESSAGE_ID_IDL = 0x01;                   // ID сообщения IDL
 
 
-
-
-tlv receivedTLV;
-tlv sentTLV;
+//звменил  receivedTLV.isMesProcessed = true -> false
+tlv receivedTLV {receivedTLV.mesName = "",receivedTLV.amount = 0 ,receivedTLV.lastTime = millis(), receivedTLV.isMesProcessed = false};
+tlv sentTLV{"",0 , millis(), true};
 
 void start_payment(int amount) {
    
     UART0_DEBUG_PORT.print("Начата оплата на сумму: ");
-    UART0_DEBUG_PORT.print(amount / 100);
+    UART0_DEBUG_PORT.print(double(amount) / 100.0);
     UART0_DEBUG_PORT.println(" руб.");
     
     // Отправляем терминал в режим приема оплаты
@@ -35,25 +33,50 @@ void start_payment(int amount) {
 
 
 void processing_received_POS_message(){
-    static int requestedAmount;
+    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "STA") && (receivedTLV.amount > 0)){
+          
+          sentTLV.mesName = "VRP";
 
-    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "STA")){
-        start_payment(receivedTLV.amount);
+
+//DEBUG amount/100
+          int sent_DEBUG_amount = receivedTLV.amount >= 100 ? receivedTLV.amount / 100 : receivedTLV.amount;
+          sentTLV.amount = receivedTLV.amount;
+
+
+          sentTLV.lastTime = millis(); 
+          sentTLV.isMesProcessed = false;       
+
+          receivedTLV.lastTime = millis();
+          receivedTLV.isMesProcessed = true;
+
+          UART0_DEBUG_PORT.print("SUM ");
+          UART0_DEBUG_PORT.println(receivedTLV.amount);
+          UART0_DEBUG_PORT.print("Name ");
+          UART0_DEBUG_PORT.println(receivedTLV.mesName);
+          UART0_DEBUG_PORT.print("Flag ");
+          UART0_DEBUG_PORT.println(receivedTLV.isMesProcessed);
+          UART0_DEBUG_PORT.print("Millis ");
+          UART0_DEBUG_PORT.println(receivedTLV.lastTime);
+
+          if (!sentTLV.isMesProcessed) {
+//DEBUG sent_DEBUG_amount
+            start_payment(sent_DEBUG_amount);
+//            start_payment(sentTLV.amount);
+            sentTLV.isMesProcessed == true;
+          }
+        }
+    
+  
+
+    if((receivedTLV.isMesProcessed) && (receivedTLV.mesName == "VRP") && (millis() - receivedTLV.lastTime < 5000) && (sentTLV.amount == receivedTLV.amount)){
         receivedTLV.lastTime = millis();
         receivedTLV.isMesProcessed = false;
-    }
-    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "VRP") && (millis() - receivedTLV.lastTime < 5000)){
-        start_payment(receivedTLV.amount);
-        requestedAmount = receivedTLV.amount;
-        receivedTLV.lastTime = millis();
-        receivedTLV.isMesProcessed = false;
-    }
-    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "IDL") && (millis() - receivedTLV.lastTime < 5000) && (requestedAmount == receivedTLV.amount)){
-        start_payment(receivedTLV.amount);
-        receivedTLV.isMesProcessed = false;
-        receivedTLV.lastTime = millis();
+        sentTLV.isMesProcessed == false;
+        send_IDL();
         handle_successful_payment();
-    } else {
+    }else if((receivedTLV.isMesProcessed) && (receivedTLV.mesName == "VRP") && (millis() - receivedTLV.lastTime < 5000) && (sentTLV.amount != receivedTLV.amount)) {
+        receivedTLV.isMesProcessed = false;
+        sentTLV.isMesProcessed == false;
         handle_failed_payment();
     }
 
@@ -103,7 +126,7 @@ void process_POS_received_data() {
   const int appEnd   = bufferIndex - 2;  // до CRC
 
   String msgName = "";
-  long operationNumber = -1;
+  long operation_Number = -1;
   long amount = -1;
 
   for (int p = appStart; p < appEnd; ) {
@@ -123,7 +146,8 @@ void process_POS_received_data() {
 
       case 0x03: { 
         String s=""; for (int i=0;i<len;i++) s += char(receiveBuffer[p+i]);
-        operationNumber = s.toInt();
+        operation_Number = s.toInt();
+        operationNumber = operation_Number;
       } break;
 
       case 0x04: { 
@@ -137,21 +161,22 @@ void process_POS_received_data() {
   }
 
 
-  if (receivedTLV.isMesProcessed){
+//  if (!receivedTLV.isMesProcessed){
     receivedTLV.amount = amount;
     receivedTLV.mesName = msgName;
     receivedTLV.isMesProcessed = false;
     receivedTLV.lastTime = millis();
-  }
+//  }
 
-  UART0_DEBUG_PORT.print("Имя: "); UART0_DEBUG_PORT.println(msgName);
+//  UART0_DEBUG_PORT.print("Имя: "); UART0_DEBUG_PORT.println(msgName);
+  UART0_DEBUG_PORT.print("Имя_TLV: "); UART0_DEBUG_PORT.println(receivedTLV.mesName);
   if (amount >= 0) {
     UART0_DEBUG_PORT.print("Сумма: "); 
     UART0_DEBUG_PORT.print(amount/100); UART0_DEBUG_PORT.print(" руб "); 
     UART0_DEBUG_PORT.print(amount%100); UART0_DEBUG_PORT.println(" коп");
   }
-  if (operationNumber >= 0) {
-    UART0_DEBUG_PORT.print("Operation: "); UART0_DEBUG_PORT.println(operationNumber);
+  if (operation_Number >= 0) {
+    UART0_DEBUG_PORT.print("номер операции: "); UART0_DEBUG_PORT.println(get_current_operation_number());
   }
 
   clear_buffer();

@@ -110,13 +110,13 @@ byte* create_VTK_message(const std::string& messageName, int operationNumber, in
 }
 
 void send_IDL() {
-    int operationNumber = get_current_operation_number();
+    int operation_Number = get_current_operation_number();
     int messageLength = 10;
     byte* message = create_IDL_message(messageLength);
 
     // Логирование отправки
     UART0_DEBUG_PORT.print("Отправка IDL, операция: ");
-    UART0_DEBUG_PORT.println(operationNumber);
+    UART0_DEBUG_PORT.println(operation_Number);
 
     // Отправка сообщения
     send_message(message, messageLength + 2);
@@ -150,6 +150,7 @@ void send_VRP(int amount) {
   }
 
   params[0x04] = amountBytes;
+  increment_operation_number();
   increment_operation_number();
   byte* message = create_VTK_message("VRP", get_current_operation_number(), messageLength, params);
 
@@ -227,8 +228,11 @@ void send_FIN(int amount){
 }
 
 void increment_operation_number() {
+  int currentOpNumber;
+
   noInterrupts();
-  operationNumber = (operationNumber < MAX_OPERATION_NUMBER) ? operationNumber + 1 : 0;
+  currentOpNumber = get_current_operation_number();
+  operationNumber = (currentOpNumber < MAX_OPERATION_NUMBER) ? currentOpNumber + 1 : 0;
   interrupts();
 }
 

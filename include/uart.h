@@ -3,14 +3,15 @@
 #define UART0_DEBUG_PORT Serial
 #define UART0_DEBUG_PORT_BAUDRATE 115200
 
-#define UART1_VMC_PORT Serial1
-#define UART1_VMC_PORT_BAUDRATE 57600
-#define UART1_VMC_PORT_RX_PIN 6
-#define UART1_VMC_PORT_TX_PIN 7
+#define UART1_POS_PORT Serial1
+#define UART1_POS_PORT_BAUDRATE 57600
+#define UART1_POS_PORT_RX_PIN 6
+#define UART1_POS_PORT_TX_PIN 7
 
 #define BUFFER_SIZE 256
 
-
+#define RX2_PIN 21 //для связи с энергосчетчика
+#define TX2_PIN 20
 
 void UART_Setup();
 void UART_Commands_processing();
