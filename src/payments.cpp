@@ -228,21 +228,28 @@ void handle_payment_timeout() {
 
 
 void charging_managment(){
-    if((payment.isPaymentSucsess == PAID) && (payment.isChargingActive == INACTIVE)){                         // Платеж прошел
+    if(payment.isPaymentSucsess == NOT_PAID) return;
+
+    if(payment.isChargingActive == INACTIVE){                                                                 // Платеж прошел
       softserial_energy_port_send_command("E");                                                               // Обнулить счетсчик электроэнергии на Arduino    
       softserial_energy_port_send_command("R ON");                                                            // Так как оплата прошла успешно, то включить реле
-    }else if((payment.isPaymentSucsess == PAID) && (get_power() > 300) && (payment.isChargingActive == INACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){ 
+                                                                 
+    }else if((get_power() > 300) && (payment.isChargingActive == INACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){ 
+      ///////////Обработка ситуации когда началось потребление энергии и нужна имитация того что убрали карту //
       payment.isChargingActive = ACTIVE;
-    }else if((payment.isPaymentSucsess == PAID) && (get_power() > 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){
-      softserial_energy_port_send_command("R OFF");                                                            //Имитация того что убрана карта оплаты
+      softserial_energy_port_send_command("R OFF");
 
-    }else if((payment.isPaymentSucsess == PAID) && (get_power() < 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){
+    }else if((get_power() < 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){
+      ///////////Обработка ситуации когда кабель вытащили из авто и нужно сделать возврат средств
        //sendREFUND(int amount, int operationNumber); 
 
-    }else if((payment.isPaymentSucsess == PAID) && (get_power() > 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale < get_energy_total())){
+    }else if((get_power() > 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale < get_energy_total())){  //get_energy_total() это функция которая возвращает сколько энергии было потрачено
+      //////////Обработка ситуации когда израсходованы кв.ч и нужно прервать зарядку путем имитации прикладывания карты
+      payment.isPaymentSucsess == NOT_PAID;
       payment.isChargingActive = INACTIVE;
       softserial_energy_port_send_command("R ON");                                                             //Имитация прикладывания карты
       delay(1000);
       softserial_energy_port_send_command("R OFF");
+
     }
 } 
