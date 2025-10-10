@@ -18,8 +18,10 @@ const byte MESSAGE_ID_IDL = 0x01;                   // ID сообщения IDL
 
 
 //звменил  receivedTLV.isMesProcessed = true -> false
-tlv receivedTLV {receivedTLV.mesName = "",receivedTLV.amount = 0 ,receivedTLV.lastTime = millis(), receivedTLV.isMesProcessed = false};
-tlv sentTLV{"",0 , millis(), true};
+tlv receivedTLV {receivedTLV.mesName = "", receivedTLV.opNumber = 0, receivedTLV.amount = 0, receivedTLV.lastTime = millis(), receivedTLV.isMesProcessed = true};
+tlv sentTLV{"", 0, 0, millis(), true};
+
+transactions payment {payment.kWattPerHourAvailbale = 0, payment.paidMinor = 0, payment.isPaymentSucsess = NOT_PAID};
 
 void start_payment(int amount) {
    
@@ -32,55 +34,67 @@ void start_payment(int amount) {
 }
 
 
-void processing_received_POS_message(){
-    if((!receivedTLV.isMesProcessed) && (receivedTLV.mesName == "STA") && (receivedTLV.amount > 0)){
-          
-          sentTLV.mesName = "VRP";
+void processing_received_POS_message() {
+  if (receivedTLV.isMesProcessed) return;      // одно сообщение — одно действие
 
+  const unsigned long now = millis();
 
-//DEBUG amount/100
-          int sent_DEBUG_amount = receivedTLV.amount >= 100 ? receivedTLV.amount / 100 : receivedTLV.amount;
-          sentTLV.amount = receivedTLV.amount;
+  // 1) STA -> стартуем оплату суммой из STA (в минорных единицах)
+  if (receivedTLV.mesName == "STA") {
+    receivedTLV.isMesProcessed = true;         // пометить до сайд-эффектов
+    if (receivedTLV.amount > 0) {
+      // фиксируем "контекст отправки" (для сравнения при ответе)
+      sentTLV.amount   = receivedTLV.amount;
+      sentTLV.mesName  = "VRP";
+      sentTLV.lastTime = now;
 
-
-          sentTLV.lastTime = millis(); 
-          sentTLV.isMesProcessed = false;       
-
-          receivedTLV.lastTime = millis();
-          receivedTLV.isMesProcessed = true;
-
-          UART0_DEBUG_PORT.print("SUM ");
-          UART0_DEBUG_PORT.println(receivedTLV.amount);
-          UART0_DEBUG_PORT.print("Name ");
-          UART0_DEBUG_PORT.println(receivedTLV.mesName);
-          UART0_DEBUG_PORT.print("Flag ");
-          UART0_DEBUG_PORT.println(receivedTLV.isMesProcessed);
-          UART0_DEBUG_PORT.print("Millis ");
-          UART0_DEBUG_PORT.println(receivedTLV.lastTime);
-
-          if (!sentTLV.isMesProcessed) {
-//DEBUG sent_DEBUG_amount
-            start_payment(sent_DEBUG_amount);
-//            start_payment(sentTLV.amount);
-            sentTLV.isMesProcessed == true;
-          }
-        }
-    
-  
-
-    if((receivedTLV.isMesProcessed) && (receivedTLV.mesName == "VRP") && (millis() - receivedTLV.lastTime < 5000) && (sentTLV.amount == receivedTLV.amount)){
-        receivedTLV.lastTime = millis();
-        receivedTLV.isMesProcessed = false;
-        sentTLV.isMesProcessed == false;
-        send_IDL();
-        handle_successful_payment();
-    }else if((receivedTLV.isMesProcessed) && (receivedTLV.mesName == "VRP") && (millis() - receivedTLV.lastTime < 5000) && (sentTLV.amount != receivedTLV.amount)) {
-        receivedTLV.isMesProcessed = false;
-        sentTLV.isMesProcessed == false;
-        handle_failed_payment();
+      start_payment(receivedTLV.amount);                   // внутри сформирует и отправит VRP
+    } else {
+      UART0_DEBUG_PORT.println("STA без суммы — VRP не отправляем");
     }
+    return;
+  }
 
+  // 2) Ответ по оплате: имя может быть VRP/RES/VRA (в зависимости от прошивки)
+  if (receivedTLV.mesName == "VRP") {
+
+    
+    if (receivedTLV.amount == sentTLV.amount){
+      UART0_DEBUG_PORT.print("Оплата подтверждена суммой: ");
+      UART0_DEBUG_PORT.println(receivedTLV.amount);
+      handle_successful_payment();                    // включает реле и т.п.
+      send_IDL();                                     // при необходимости
+    } else {
+      UART0_DEBUG_PORT.print("Несовпадение суммы (ожидали ");
+      UART0_DEBUG_PORT.print(sentTLV.amount);
+      UART0_DEBUG_PORT.print(", получили ");
+      UART0_DEBUG_PORT.print(receivedTLV.amount);
+      UART0_DEBUG_PORT.println(") — отклоняем");
+      handle_failed_payment();
+    }
+    receivedTLV.isMesProcessed = true;                 // пометить до сайд-эффектов
+    // очистка контекста отправленного VRP
+    sentTLV.amount   = 0;
+    sentTLV.mesName  = "";
+    sentTLV.lastTime = 0;
+    sentTLV.opNumber = 0;
+    return;
+  }
+
+  // 3) Прочие сообщения — пометить обработанными
+  receivedTLV.isMesProcessed = true;
+
+  // 4) Таймаут ожидания ответа на наш VRP
+  if (sentTLV.amount > 0 && (now - sentTLV.lastTime) > PAYMENT_TIMEOUT) {
+    UART0_DEBUG_PORT.println("Payment timeout");
+    handle_payment_timeout();
+    sentTLV.amount   = 0;
+    sentTLV.mesName  = "";
+    sentTLV.lastTime = 0;
+    sentTLV.opNumber = 0;
+  }
 }
+
 
 
 
@@ -161,12 +175,12 @@ void process_POS_received_data() {
   }
 
 
-//  if (!receivedTLV.isMesProcessed){
+  if (receivedTLV.isMesProcessed){
     receivedTLV.amount = amount;
     receivedTLV.mesName = msgName;
     receivedTLV.isMesProcessed = false;
     receivedTLV.lastTime = millis();
-//  }
+  }
 
 //  UART0_DEBUG_PORT.print("Имя: "); UART0_DEBUG_PORT.println(msgName);
   UART0_DEBUG_PORT.print("Имя_TLV: "); UART0_DEBUG_PORT.println(receivedTLV.mesName);
@@ -187,6 +201,9 @@ void process_POS_received_data() {
 void handle_successful_payment() {
     UART0_DEBUG_PORT.println("Оплата успешно проведена");
   
+    payment.isPaymentSucsess = PAID;
+    payment.paidMinor = receivedTLV.amount;
+    payment.kWattPerHourAvailbale = payment.paidMinor / PRICE_FOR_ONE_KWHOUR 
     softserial_energy_port_send_command("R ON");
     delay(1000);
     softserial_energy_port_send_command("R OFF");
