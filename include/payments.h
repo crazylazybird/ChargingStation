@@ -21,14 +21,19 @@ struct tlv {
 };
 
 enum PaymentStatus : uint8_t {
-    PAID = 0,
-    NOT_PAID = 1
+    PAID = 1,
+    NOT_PAID = 0
 };
-
+enum ChargingStatus : uint8_t {
+    ACTIVE = 1,
+    INACTIVE = 0
+};
 
 struct transactions{
     float   kWattPerHourAvailbale;        // текущее значение мощности (КВт.ч)
     int     paidMinor;                      // оплачено в минорных единицах (копейки)
     PaymentStatus    isPaymentSucsess;
+    unsigned long   lastTime;
+    ChargingStatus isChargingActive;
 };
 

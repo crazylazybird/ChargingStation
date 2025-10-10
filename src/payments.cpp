@@ -7,8 +7,6 @@ extern volatile int operationNumber;
 extern uint8_t receiveBuffer[BUFFER_SIZE];
 extern int bufferIndex;
 
-extern float power; // Мощность
-extern float energyTotal; // Общее потребление энергии
 
 const byte START_BYTE = 0x1F;                       // Стартовый байт
 const byte PROTOCOL_DISCRIMINATOR_HIGH = 0x96;      // Дискриминатор протокола (старшие биты)
@@ -21,7 +19,8 @@ const byte MESSAGE_ID_IDL = 0x01;                   // ID сообщения IDL
 tlv receivedTLV {receivedTLV.mesName = "", receivedTLV.opNumber = 0, receivedTLV.amount = 0, receivedTLV.lastTime = millis(), receivedTLV.isMesProcessed = true};
 tlv sentTLV{"", 0, 0, millis(), true};
 
-transactions payment {payment.kWattPerHourAvailbale = 0, payment.paidMinor = 0, payment.isPaymentSucsess = NOT_PAID};
+transactions payment {payment.kWattPerHourAvailbale = 0, payment.paidMinor = 0, payment.isPaymentSucsess = NOT_PAID, payment.lastTime = millis(), payment.isChargingActive = INACTIVE};
+
 
 void start_payment(int amount) {
    
@@ -203,26 +202,47 @@ void handle_successful_payment() {
   
     payment.isPaymentSucsess = PAID;
     payment.paidMinor = receivedTLV.amount;
-    payment.kWattPerHourAvailbale = payment.paidMinor / PRICE_FOR_ONE_KWHOUR 
-    softserial_energy_port_send_command("R ON");
-    delay(1000);
-    softserial_energy_port_send_command("R OFF");
+    payment.kWattPerHourAvailbale = payment.paidMinor / PRICE_FOR_ONE_KWHOUR; 
+
+    // delay(1000);
+    // softserial_energy_port_send_command("R OFF");
 }
 
 // Обработка ошибки платежа
 void handle_failed_payment() {
     UART0_DEBUG_PORT.println("Ошибка при проведении оплаты");
 
-    softserial_energy_port_send_command("R ON");
-    delay(1000);
-    softserial_energy_port_send_command("R OFF");
+    // softserial_energy_port_send_command("R ON");
+    // delay(1000);
+    // softserial_energy_port_send_command("R OFF");
 }
 
 // Обработка таймаута
 void handle_payment_timeout() {
     UART0_DEBUG_PORT.println("Превышено время ожидания оплаты");
 
-    softserial_energy_port_send_command("R ON");
-    delay(1000);
-    softserial_energy_port_send_command("R OFF");
+    // softserial_energy_port_send_command("R ON");
+    // delay(1000);
+    // softserial_energy_port_send_command("R OFF");
 }
+
+
+void charging_managment(){
+    if((payment.isPaymentSucsess == PAID) && (payment.isChargingActive == INACTIVE)){                         // Платеж прошел
+      softserial_energy_port_send_command("E");                                                               // Обнулить счетсчик электроэнергии на Arduino    
+      softserial_energy_port_send_command("R ON");                                                            // Так как оплата прошла успешно, то включить реле
+    }else if((payment.isPaymentSucsess == PAID) && (get_power() > 300) && (payment.isChargingActive == INACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){ 
+      payment.isChargingActive = ACTIVE;
+    }else if((payment.isPaymentSucsess == PAID) && (get_power() > 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){
+      softserial_energy_port_send_command("R OFF");                                                            //Имитация того что убрана карта оплаты
+
+    }else if((payment.isPaymentSucsess == PAID) && (get_power() < 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale > get_energy_total())){
+       //sendREFUND(int amount, int operationNumber); 
+
+    }else if((payment.isPaymentSucsess == PAID) && (get_power() > 300) && (payment.isChargingActive == ACTIVE) && (payment.kWattPerHourAvailbale < get_energy_total())){
+      payment.isChargingActive = INACTIVE;
+      softserial_energy_port_send_command("R ON");                                                             //Имитация прикладывания карты
+      delay(1000);
+      softserial_energy_port_send_command("R OFF");
+    }
+} 
