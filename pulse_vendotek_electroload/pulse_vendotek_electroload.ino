@@ -22,14 +22,14 @@ SoftwareSerial mySerial(14, 16);  // RX-pin 14, TX-pin 16 - для связи с
 #define VOLTAGE_POS A2  // Вход напряжения +
 #define VOLTAGE_NEG A3  // Вход напряжения -
 #define ENERGY_PIN 2    // Вход импульсов энергии
-#define RELAY_PIN 3        // Выход реле
-#define BUZZER_PIN 10  // Звуковой сигнал
+#define RELAY_PIN 3     // Выход реле
+#define BUZZER_PIN 10   // Звуковой сигнал
 #define LED_PIN 17      // Индикатор
 
-//назначаем UART_TX_PIN 8 - для связи с ESP32 по UART - только передача в одну сторону 
-//см. что добалено изменение состояние этого пина в функции звука beep, 
+//назначаем UART_TX_PIN 8 - для связи с ESP32 по UART - только передача в одну сторону
+//см. что добалено изменение состояние этого пина в функции звука beep,
 //зачем? - для контроля работы пина? но уже было проаерено, что передача по UART передается
-#define UART_TX_PIN 8  
+#define UART_TX_PIN 8
 
 // Структуры данных
 struct CalibrationData {
@@ -55,8 +55,8 @@ volatile bool soundActive = false;
 unsigned long soundStartTime = 0;
 unsigned long soundDuration = 0;
 bool soundEnable = true;
-unsigned long debugPeriod = 1000;       // период вывода отладочной информации (мс)
-unsigned long energySendPeriod = 1000;  // период вывода Energy информации (мс)
+unsigned long debugPeriod = 3000;       // период вывода отладочной информации (мс)
+unsigned long energySendPeriod = 3000;  // период вывода Energy информации (мс)
 unsigned long lastDebugTime = 0;        // время последнего вывода
 unsigned long lastEnergySendTime = 0;   // время последнего вывода
 bool debugMode = true;                  // флаг режима отладки
@@ -84,7 +84,7 @@ void setup() {
 
   // Serial-порт
   Serial.begin(115200);
-  mySerial.begin(9600); //- для связи с ESP32 по UART
+  mySerial.begin(9600);  //- для связи с ESP32 по UART
   mySerial.println("Test Serial Ok");
   // Загрузка конфигурации
   loadConfiguration();
@@ -100,7 +100,7 @@ float readCurrent() {
   }
   float raw = (float)(posSum - negSum) / SAMPLES - sysData.calib.currOffset;
 
-  if(raw >= 0)
+  if (raw >= 0)
     return raw * sysData.calib.currScale;
   else
     return 0;
@@ -114,12 +114,11 @@ float readVoltage() {
     negSum += analogRead(VOLTAGE_NEG);
     delay(1);
   }
-  float raw = (float)(posSum - negSum) / SAMPLES - sysData.calib.voltOffset;  
-  if(raw >= 0)
+  float raw = (float)(posSum - negSum) / SAMPLES - sysData.calib.voltOffset;
+  if (raw >= 0)
     return raw * sysData.calib.voltScale;
   else
     return 0;
-  
 }
 
 // Управление реле
@@ -261,14 +260,14 @@ void loop() {
   //   processCommandMySerial(cmd);
   // }
   processMySerial();
-//вывод данных в порт с периодичностью energySendPeriod
+  //вывод данных в порт с периодичностью energySendPeriod
   if (energySend) {
     if (millis() - lastEnergySendTime >= energySendPeriod) {
       lastEnergySendTime = millis();
 
-  //выбор порта отправки данных по команде 'X' с изменением значения energySendTo
+      //выбор порта отправки данных по команде 'X' с изменением значения energySendTo
 
-    //в порт на ESP32
+      //в порт на ESP32
       if (energySendTo) {
         sendEnergyData();
         // mySerial.print("energyData ");
@@ -288,7 +287,7 @@ void loop() {
         // mySerial.print("E: ");
         // mySerial.println(sysData.totalEnergy, 4);
       } else {
-      //в USB-порт
+        //в USB-порт
         // Serial.print("energyData ");
         // Serial.print(readCurrent(), 2);
         // Serial.print(" ");
@@ -349,36 +348,36 @@ void loop() {
 
 // ---------- CRC16 ----------
 uint16_t calculate_CRC16(const uint8_t* data, int length) {
-    uint16_t crc = 0xFFFF;
-    for (int pos = 0; pos < length; pos++) {
-        crc ^= (uint16_t)data[pos];
-        for (int i = 0; i < 8; i++) {
-            if (crc & 0x0001) {
-                crc >>= 1;
-                crc ^= 0xA001;
-            } else {
-                crc >>= 1;
-            }
-        }
+  uint16_t crc = 0xFFFF;
+  for (int pos = 0; pos < length; pos++) {
+    crc ^= (uint16_t)data[pos];
+    for (int i = 0; i < 8; i++) {
+      if (crc & 0x0001) {
+        crc >>= 1;
+        crc ^= 0xA001;
+      } else {
+        crc >>= 1;
+      }
     }
-    return crc;
+  }
+  return crc;
 }
 
 // ---------- DEC -> BCD ----------
 byte dec2bcd(int val) {
-    return ((val / 10) << 4) | (val % 10);
+  return ((val / 10) << 4) | (val % 10); //от 0 до 99
 }
 
 void put_bcd2(uint8_t* buf, int& index, int value) {
-    buf[index++] = dec2bcd(value / 100);
-    buf[index++] = dec2bcd(value % 100);
+  buf[index++] = dec2bcd(value / 100);
+  buf[index++] = dec2bcd(value % 100);
 }
 
 void put_bcd4(uint8_t* buf, int& index, long value) {
-    buf[index++] = dec2bcd((value / 1000000) % 100);
-    buf[index++] = dec2bcd((value / 10000) % 100);
-    buf[index++] = dec2bcd((value / 100) % 100);
-    buf[index++] = dec2bcd(value % 100);
+  buf[index++] = dec2bcd((value / 1000000) % 100);
+  buf[index++] = dec2bcd((value / 10000) % 100);
+  buf[index++] = dec2bcd((value / 100) % 100);
+  buf[index++] = dec2bcd(value % 100);
 }
 
 // ---------- ОТПРАВКА ДАННЫХ ----------
@@ -386,8 +385,8 @@ void sendEnergyData() {
     uint8_t buffer[64];
     int index = 0;
 
-    float I = readCurrent();
     float U = readVoltage();
+    float I = readCurrent();
     float P = calculatePower();
     float E = sysData.totalEnergy;
 
@@ -396,16 +395,16 @@ void sendEnergyData() {
     buffer[index++] = 0x55;
 
     // Напряжение (BCD, шаг 0.1 В)
-    put_bcd2(buffer, index, (int)(U * 10));
+    put_bcd4(buffer, index, (int)(U * 10));
 
-    // Ток (BCD, шаг 0.01 А)
-    put_bcd2(buffer, index, (int)(I * 100));
+    // Ток (BCD, шаг 0.1 А)
+    put_bcd4(buffer, index, (int)(I * 10));
 
     // Мощность (BCD, шаг 0.1 Вт)
-    put_bcd2(buffer, index, (int)(P * 10));
+    put_bcd4(buffer, index, (int)(P * 10));
 
-    // Энергия (BCD, шаг 0.001 кВт·ч)
-    put_bcd4(buffer, index, (long)(E * 1000));
+    // Энергия (BCD, шаг 0.01 кВт·ч)
+    put_bcd4(buffer, index, (long)(E * 100));
 
     // ==== CRC ====
     uint16_t crc = calculate_CRC16(buffer, index); // считаем по всем от 0xAA до конца данных
@@ -414,6 +413,9 @@ void sendEnergyData() {
 
     // ==== Маркер конца ====
     buffer[index++] = 0x0D;
+
+
+    //  Serial.print("пакет UIPE: ");Serial.println(buffer, 2);
 
 
     // Отправляем пакет
@@ -435,18 +437,43 @@ void sendEnergyData() {
     // Serial.println();
 }
 
+// void sendEnergyData() {
+//         mySerial.write(0xAA);
+//         mySerial.write(0x55);
+//         mySerial.print("I: ");
+//         mySerial.print(readCurrent(), 2);
+//         mySerial.print(" U: ");
+//         mySerial.print(readVoltage(), 2);
+//         mySerial.print(" P: ");
+//         mySerial.print(calculatePower(), 2);
+//         mySerial.print(" E: ");
+//         mySerial.print(sysData.totalEnergy, 4);
+//         mySerial.write(0x0D);
+//         mySerial.println();
+// }
+
+
+
+
+
 
 #define STX1 0xAA
 #define STX2 0x55
-#define RX_MAX 128         // максимум полезной нагрузки
-#define RX_TIMEOUT_MS 50   // тайм-аут «тишины» при приёме кадра
+#define RX_MAX 128        // максимум полезной нагрузки
+#define RX_TIMEOUT_MS 50  // тайм-аут «тишины» при приёме кадра
 
-enum RxState { WAIT_STX1, WAIT_STX2, READ_LEN_H, READ_LEN_L, READ_PAYLOAD, READ_CRC_H, READ_CRC_L };
+enum RxState { WAIT_STX1,
+               WAIT_STX2,
+               READ_LEN_H,
+               READ_LEN_L,
+               READ_PAYLOAD,
+               READ_CRC_H,
+               READ_CRC_L };
 static RxState rxState = WAIT_STX1;
 
 static uint16_t rxLen = 0;
 static uint16_t rxIdx = 0;
-static uint8_t  rxBuf[RX_MAX];   // только PAYLOAD
+static uint8_t rxBuf[RX_MAX];  // только PAYLOAD
 static uint16_t rxCRC_recv = 0;
 static uint32_t lastByteMs = 0;
 
@@ -483,7 +510,7 @@ void processMySerial() {
 
       case READ_LEN_L:
         rxLen |= c;
-        if (rxLen == 0 || rxLen > RX_MAX) { // защита от переполнения/нONSENSE
+        if (rxLen == 0 || rxLen > RX_MAX) {  // защита от переполнения/нONSENSE
           resetRx();
           break;
         }
@@ -501,24 +528,25 @@ void processMySerial() {
         rxState = READ_CRC_L;
         break;
 
-      case READ_CRC_L: {
-        rxCRC_recv |= c;
-        // проверяем CRC по PAYLOAD
-        uint16_t rxCRC_calc = calculate_CRC16(rxBuf, rxLen);
-        if (rxCRC_calc == rxCRC_recv) {
-          // преобразуем PAYLOAD в строку команды (если ASCII)
-          String cmd;
-          cmd.reserve(rxLen);
-          for (uint16_t i = 0; i < rxLen; ++i) cmd += (char)rxBuf[i];
+      case READ_CRC_L:
+        {
+          rxCRC_recv |= c;
+          // проверяем CRC по PAYLOAD
+          uint16_t rxCRC_calc = calculate_CRC16(rxBuf, rxLen);
+          if (rxCRC_calc == rxCRC_recv) {
+            // преобразуем PAYLOAD в строку команды (если ASCII)
+            String cmd;
+            cmd.reserve(rxLen);
+            for (uint16_t i = 0; i < rxLen; ++i) cmd += (char)rxBuf[i];
 
-          processCommandMySerial(cmd);
-        } else {
-          Serial.println(F("Ошибка CRC"));
-          beep(3, 30);
+            processCommandMySerial(cmd);
+          } else {
+            Serial.println(F("Ошибка CRC"));
+            beep(3, 30);
+          }
+          resetRx();
+          break;
         }
-        resetRx();
-        break;
-      }
     }
   }
 }
@@ -598,10 +626,10 @@ void beep(int count, unsigned long duration) {
   if (!soundEnable) return;  // Проверка включения звука
 
   for (int i = 0; i < count; i++) {
-    digitalWrite(BUZZER_PIN, LOW);  // Включение звука
+    digitalWrite(BUZZER_PIN, LOW);   // Включение звука
     digitalWrite(UART_TX_PIN, LOW);  // Включение звука
     delay(duration);
-    digitalWrite(BUZZER_PIN, HIGH);  // Выключение звука
+    digitalWrite(BUZZER_PIN, HIGH);   // Выключение звука
     digitalWrite(UART_TX_PIN, HIGH);  // Выключение звука
     if (i < count - 1) {
       delay(duration / 2);  // Пауза между сигналами
@@ -647,7 +675,7 @@ void printCalibrationData() {
   Serial.println(sysData.calib.checksum, HEX);
 }
 
-void processCommandMySerial(String cmd){
+void processCommandMySerial(String cmd) {
   if (cmd.length() == 0) return;
 
   char command = toupper(cmd[0]);
@@ -669,7 +697,7 @@ void processCommandMySerial(String cmd){
       break;
     case 'E':
       resetEnergyCounter();
-      break;  
+      break;
     default:
       Serial.println(F("Неизвестная команда! Введите '?' для справки"));
       beep(3, 30);

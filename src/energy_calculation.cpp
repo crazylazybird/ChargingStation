@@ -27,14 +27,15 @@ int bcd2dec(byte b1, byte b2, byte b3, byte b4) {
 // ---------- ПАРСИНГ ----------
 void parse_energy_data(byte* data, int length) {
     // data[0] = 0xAA, data[1] = 0x55
-    voltage     = bcd2dec(data[2], data[3]) * 0.1;
-    current     = bcd2dec(data[4], data[5]) * 0.01;
-    power       = bcd2dec(data[6], data[7]) * 0.1;
-    energyTotal = bcd2dec(data[8], data[9], data[10], data[11]) * 0.001;
+    voltage     = bcd2dec(data[2], data[3], data[4], data[5]) * 0.1;
+    current     = bcd2dec(data[6], data[7], data[8], data[9]) * 0.1;
+    //power       = bcd2dec(data[10], data[11], data[12], data[13]) * 0.1; 
+    power = voltage*current;
+    energyTotal = bcd2dec(data[14], data[15], data[16], data[17]) * 0.01;
 
     // UART0_DEBUG_PORT.println("------------------------");
-    // UART0_DEBUG_PORT.print("Напряжение: "); UART0_DEBUG_PORT.print(voltage); UART0_DEBUG_PORT.println(" В");
     // UART0_DEBUG_PORT.print("Ток: "); UART0_DEBUG_PORT.print(current); UART0_DEBUG_PORT.println(" А");
+    // UART0_DEBUG_PORT.print("Напряжение: "); UART0_DEBUG_PORT.print(voltage); UART0_DEBUG_PORT.println(" В");
     // UART0_DEBUG_PORT.print("Мощность: "); UART0_DEBUG_PORT.print(power); UART0_DEBUG_PORT.println(" Вт");
     // UART0_DEBUG_PORT.print("Энергия: "); UART0_DEBUG_PORT.print(energyTotal); UART0_DEBUG_PORT.println(" кВт·ч");
 }

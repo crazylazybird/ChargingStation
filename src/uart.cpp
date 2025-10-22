@@ -1,15 +1,12 @@
+#include "Arduino.h"
 #include "main.h"
-
+#include "uart.h"
+#include "vtk_protocol.h"
 
 
 volatile int operationNumber = 0;
 uint8_t receiveBuffer[BUFFER_SIZE];
 int bufferIndex = 0;
-
-
-bool stayIDLE = false; // Флаг периодической отправки сообщения IDL
-
-
 
 static unsigned long lastRXTime = 0;
 static unsigned long lastRX2Time = 0;
@@ -22,7 +19,7 @@ const int MIN_MESSAGE_SIZE = 10;
 const byte START_BYTE = 0x1F;                       // Стартовый байт
 
 
-const unsigned long IDL_INTERVAL = 3000; // Интервал в 10 секунд для IDLE
+const unsigned long IDL_INTERVAL = 10000; // Интервал в 10 секунд для IDLE
 int message_counter = 1;                 // Счетсчик сообщений
 
 SoftwareSerial SOFTSERIAL_ENERGY_PORT(RX2_PIN, TX2_PIN); //для связи с энергосчетчика
@@ -33,12 +30,11 @@ void UART_Setup(){
     UART0_DEBUG_PORT.begin(UART0_DEBUG_PORT_BAUDRATE);
     UART1_POS_PORT.begin(UART1_POS_PORT_BAUDRATE, SERIAL_8N1, UART1_POS_PORT_RX_PIN, UART1_POS_PORT_TX_PIN); //настройка порта UART1 - для Vendotek
     SOFTSERIAL_ENERGY_PORT.begin(9600);
-    SOFTSERIAL_ENERGY_PORT.print("R OFF");
 
-    while (!UART0_DEBUG_PORT || !UART1_POS_PORT) {
-        UART0_DEBUG_PORT.println("Порты не инициализируются");
-        delay(1000);
-    }
+    // while (!UART0_DEBUG_PORT || !UART1_POS_PORT) {
+    //     UART0_DEBUG_PORT.println("Порты не инициализируются");
+    //     delay(1000);
+    // }
 
     UART0_DEBUG_PORT.println("Система запущена");
 }
@@ -95,7 +91,7 @@ void UART_Commands_processing(){
       int spacePos = command.indexOf(' ');
       if (spacePos != -1) {
         String amountStr = command.substring(spacePos + 1);
-        int amount = amountStr.toInt();
+        long amount = amountStr.toInt();
         if (amount > 0 && amount <= 1000000) {
           send_VRP(amount);
         } else {
@@ -108,7 +104,7 @@ void UART_Commands_processing(){
           int spacePos = command.indexOf(' ');
           if (spacePos != -1) {
               String amountStr = command.substring(spacePos + 1);
-              int amount = amountStr.toInt();
+              long amount = amountStr.toInt();
               start_payment(amount);
           }
     } else if (command.startsWith("REFUND")) {
@@ -131,6 +127,15 @@ void UART_Commands_processing(){
     } else if (command.startsWith("HEX")) {
       String hexString = command.substring(8);
       send_HEX(hexString);
+    } else if (command.startsWith("ESEND")) {
+          // Обработка команды оплаты
+          int spacePos = command.indexOf(' ');
+          if (spacePos != -1) {
+              String doingCommand = command.substring(spacePos + 1);
+              softserial_energy_port_send_command(doingCommand);
+              UART0_DEBUG_PORT.print("send command: ");
+              UART0_DEBUG_PORT.println(doingCommand);
+          }
     } else if (command.startsWith("dcdHEX")) {
       // Извлекаем HEX-строку из команды
       String hexString = command.substring(10);
@@ -192,7 +197,7 @@ void send_message(byte* message, int messageLength){
 ----------------------------------------------------------------
 */
 
-// ---------- ОБРАБОТКА ----------
+
 void process_received_energy_data() {
     static byte buffer[BUFFER_SIZE];
     static int bufferIndex = 0;

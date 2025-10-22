@@ -114,9 +114,9 @@ void send_IDL() {
     int messageLength = 10;
     byte* message = create_IDL_message(messageLength);
 
-    // Логирование отправки
-    UART0_DEBUG_PORT.print("Отправка IDL, операция: ");
-    UART0_DEBUG_PORT.println(operation_Number);
+    // DEBUG отправки
+    // UART0_DEBUG_PORT.print("Отправка IDL, операция: ");
+    // UART0_DEBUG_PORT.println(operation_Number);
 
     // Отправка сообщения
     send_message(message, messageLength + 2);
@@ -128,15 +128,17 @@ void send_DIS() {
   int messageLength;
   byte* message = create_VTK_message("DIS", get_current_operation_number(), messageLength);
 
-  UART0_DEBUG_PORT.print("Отправка DIS, длина: ");
-  UART0_DEBUG_PORT.println(messageLength + 2);
+    // DEBUG отправки
+  // UART0_DEBUG_PORT.print("Отправка DIS, длина: ");
+  // UART0_DEBUG_PORT.println(messageLength + 2);
 
+    // Отправка сообщения
   send_message(message, messageLength + 2);
 
   delete[] message;
 }
 
-void send_VRP(int amount) {
+void send_VRP(long amount) {
   int messageLength;
   std::map<int, std::vector<byte>> params;
 
@@ -159,48 +161,65 @@ void send_VRP(int amount) {
   UART0_DEBUG_PORT.print(", длина: ");
   UART0_DEBUG_PORT.println(messageLength + 2);
 
+    // Отправка сообщения
   send_message(message, messageLength + 2);
 
   delete[] message;
 }
 
 void sendREFUND(int amount, int operationNumber) {
-  int messageLength;
-  std::map<int, std::vector<byte>> params;
-
-  // Формируем сумму до 1000000
-  std::vector<byte> amountBytes;
-  amountBytes.push_back((amount / 1000000) + '0');
-  amountBytes.push_back(((amount / 100000) % 10) + '0');
-  amountBytes.push_back(((amount / 10000) % 10) + '0');
-  amountBytes.push_back(((amount / 1000) % 10) + '0');
-  amountBytes.push_back(((amount / 100) % 10) + '0');
-  amountBytes.push_back(((amount / 10) % 10) + '0');
-  amountBytes.push_back((amount % 10) + '0');
-
-  params[0x04] = amountBytes;
-
-  // Добавляем номер операции
-  std::vector<byte> opNumberBytes;
-  opNumberBytes.push_back((operationNumber >> 8) & 0xFF);
-  opNumberBytes.push_back(operationNumber & 0xFF);
-  params[0x03] = opNumberBytes;
-
-  byte* message = create_VTK_message("VRP", get_current_operation_number(), messageLength, params);
-
-  UART0_DEBUG_PORT.print("Отправка возврата, сумма: ");
-  UART0_DEBUG_PORT.print(amount);
-  UART0_DEBUG_PORT.print(", операция: ");
-  UART0_DEBUG_PORT.print(operationNumber);
-  UART0_DEBUG_PORT.print(", длина: ");
-  UART0_DEBUG_PORT.println(messageLength + 2);
-
-  send_message(message, messageLength + 2);
-
-  delete[] message;
+    // Сумма должна быть отрицательной для возврата
+    amount = -amount;
+    
+    // Формируем параметры сообщения
+    std::map<int, std::vector<byte>> params;
+    
+    // Форматируем сумму в ASCII (12 символов)
+    std::vector<byte> amountBytes;
+    amountBytes.push_back((amount / 1000000) + '0');
+    amountBytes.push_back(((amount / 100000) % 10) + '0');
+    amountBytes.push_back(((amount / 10000) % 10) + '0');
+    amountBytes.push_back(((amount / 1000) % 10) + '0');
+    amountBytes.push_back(((amount / 100) % 10) + '0');
+    amountBytes.push_back(((amount / 10) % 10) + '0');
+    amountBytes.push_back((amount % 10) + '0');
+    params[0x04] = amountBytes;
+    
+    // Добавляем номер операции (8 цифр)
+    std::vector<byte> opNumberBytes;
+    opNumberBytes.push_back((operationNumber / 10000000) + '0');
+    opNumberBytes.push_back((operationNumber / 1000000) % 10 + '0');
+    opNumberBytes.push_back((operationNumber / 100000) % 10 + '0');
+    opNumberBytes.push_back((operationNumber / 10000) % 10 + '0');
+    opNumberBytes.push_back((operationNumber / 1000) % 10 + '0');
+    opNumberBytes.push_back((operationNumber / 100) % 10 + '0');
+    opNumberBytes.push_back((operationNumber / 10) % 10 + '0');
+    opNumberBytes.push_back(operationNumber % 10 + '0');
+    params[0x03] = opNumberBytes;
+    
+    // Добавляем имя сообщения
+    std::vector<byte> messageName = {'V', 'R', 'P'};
+    params[0x01] = messageName;
+    
+    // Создаем сообщение
+    int messageLength;
+    byte* message = create_VTK_message("VRP", operationNumber, messageLength, params);
+    
+    // Логирование
+    UART0_DEBUG_PORT.print("Отправка возврата, сумма: ");
+    UART0_DEBUG_PORT.print(amount);
+    UART0_DEBUG_PORT.print(", операция: ");
+    UART0_DEBUG_PORT.print(operationNumber);
+    UART0_DEBUG_PORT.print(", длина: ");
+    UART0_DEBUG_PORT.println(messageLength + 2);
+    
+    // Отправка сообщения
+    send_message(message, messageLength + 2);
+    
+    delete[] message;
 }
 
-void send_FIN(int amount){
+void send_FIN(float amount, int opNumber){
   int messageLength;
   std::map<int, std::vector<byte>> params;
 
@@ -214,15 +233,16 @@ void send_FIN(int amount){
   }
 
   params[0x04] = amountBytes;
-  increment_operation_number();
-  byte* message = create_VTK_message("FIN", get_current_operation_number(), messageLength, params);
+  //increment_operation_number();
+  byte* message = create_VTK_message("FIN", opNumber, messageLength, params);
 
-  UART0_DEBUG_PORT.print("Подтверждение платежа от терминала");
-  UART0_DEBUG_PORT.print(amount);
-  UART0_DEBUG_PORT.print(", длина: ");
-  UART0_DEBUG_PORT.println(messageLength + 2);
-
+    // Отправка сообщения
   send_message(message, messageLength + 2);
+
+  UART0_DEBUG_PORT.print("ВОЗВРАТ СДАЧИ. Подтверждаем оплату на сумму: ");
+  UART0_DEBUG_PORT.print(amount);
+  UART0_DEBUG_PORT.print("коп. (остаток будет возвращен). Номер операции: ");
+  UART0_DEBUG_PORT.println(opNumber);
 
   delete[] message;
 }
