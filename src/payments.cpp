@@ -1,6 +1,4 @@
 #include "main.h"
-#include "uart.h"
-#include "vtk_protocol.h"
 
 
 const unsigned long PAYMENT_TIMEOUT = 800000;  // Таймаут в миллисекундах

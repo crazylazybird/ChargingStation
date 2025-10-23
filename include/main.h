@@ -10,3 +10,4 @@
 #include "general_functions.h"
 #include "payments.h"
 #include "energy_calculation.h"
+#include "AMC1200B_driver.h"

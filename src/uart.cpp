@@ -1,7 +1,5 @@
-#include "Arduino.h"
 #include "main.h"
-#include "uart.h"
-#include "vtk_protocol.h"
+
 
 
 volatile int operationNumber = 0;

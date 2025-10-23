@@ -1,10 +1,5 @@
-#include <Arduino.h>
-#include <SoftwareSerial.h>
-#include <map>
-#include <vector>
-#include <string>
 #include "main.h"
-#include "uart.h"
+
 
 bool stayIDLE = true;
 
@@ -16,7 +11,7 @@ void setup(){
 
 
 void loop() {
-    UART_Commands_processing();    
+    UART_Commands_processing();  // Обработка команд меню из терминала
     UART_POS_received_data();
     send_IDLE();
     process_received_energy_data();
