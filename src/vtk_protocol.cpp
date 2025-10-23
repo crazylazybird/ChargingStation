@@ -109,6 +109,8 @@ byte* create_VTK_message(const std::string& messageName, int operationNumber, in
   return message;
 }
 
+
+/*Отправка терминалу сообщения IDLE чтобы он был готов принять оплату, так указано в документации к нему*/
 void send_IDL() {
     int operation_Number = get_current_operation_number();
     int messageLength = 10;
