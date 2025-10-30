@@ -257,3 +257,66 @@ bool postTankerAccept(const String& orderId, JsonDocument& respDoc) {
   else Serial.printf("[api] /tanker/accept FAIL %d: %s\n", code, resp.c_str());
   return false;
 }
+
+
+// Оповещение о начале пролива
+// 
+// POST /tanker/fueling?apikey=...&orderId=...
+bool postTankerFueling(const String& orderId, JsonDocument& respDoc) {
+  String resp;
+  int code = with_retry([&](){
+    return api_request("POST", "/tanker/fueling", "", resp,
+                       "orderId=" + orderId);
+  }, 3, 500);
+
+  Serial.printf("[api] /tanker/fueling -> %d\n", code);
+
+  if (code == 200) {
+    auto err = deserializeJson(respDoc, resp);
+    if (err) {
+      Serial.printf("[api] fueling parse error: %s\n", err.c_str());
+      return false;
+    }
+    appendJsonLine(kOrderRespLog, resp);
+    Preferences p; 
+    p.begin("tanker", false); 
+    p.putString("last_fueling", resp); 
+    p.end();
+    return true;
+  }
+
+  Serial.printf("[api] fueling FAIL %d: %s\n", code, resp.c_str());
+  return false;
+}
+
+// 
+// Оповещение об объёме пролива
+bool postTankerVolume(const String& orderId, double litre, JsonDocument& respDoc) {
+  String resp;
+  
+  // Формируем extraQuery: orderId и litre
+  String extra = "orderId=" + orderId + "&litre=" + String(litre, 3); 
+  // String(litre, 3) → чтобы всегда было 3 знака после точки (например 12.345)
+
+  int code = with_retry([&](){
+    return api_request("POST", "/tanker/volume", "", resp, extra);
+  }, 3, 500);
+
+  Serial.printf("[api] /tanker/volume -> %d\n", code);
+
+  if (code == 200) {
+    auto err = deserializeJson(respDoc, resp);
+    if (err) {
+      // если тело пустое или не JSON — можно просто вернуть true
+      Serial.println("[api] volume no JSON body, treat as OK");
+      return true;
+    }
+    return true;
+  }
+
+  if (code == 400) Serial.printf("[api] /tanker/volume BAD_REQUEST: %s\n", resp.c_str());
+  else if (code >= 500) Serial.printf("[api] /tanker/volume SERVER ERROR: %s\n", resp.c_str());
+  else Serial.printf("[api] /tanker/volume FAIL %d: %s\n", code, resp.c_str());
+
+  return false;
+}
