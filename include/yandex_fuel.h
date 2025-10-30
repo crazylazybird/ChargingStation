@@ -9,10 +9,17 @@
 #include <Preferences.h>
 #include <rom/rtc.h>
 #include <esp_system.h>
+#include <ArduinoJson.h>
+#include <SPIFFS.h>
+#include <Preferences.h>
 
 void wifi_initialize();
 bool api_ping();
-int api_request(const String& method, const String& path, const String& body, String& responseOut);
+int api_request(const String& method,
+               const String& path,
+               const String& body,
+               String& responseOut,
+               const String& extraQuery);
 bool time_is_set();
 void init_time();
 String uuidV4();

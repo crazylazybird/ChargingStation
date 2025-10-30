@@ -1,25 +1,25 @@
 #include "main.h"
 
+// ================== НАСТРОЙКИ ==================
 const char* WIFI_SSID     = "YOUR_SSID";
 const char* WIFI_PASSWORD = "YOUR_PASSWORD";
 
-const char* API_BASE_URL  = "https://app.tst.tanker.yandex.net/api"; // тест
-// const char* API_BASE_URL  = "https://app.tanker.yandex.net/api";   // прод
+const char* API_BASE_URL  = "https://app.tst.tanker.yandex.net/api";  // тестовый адрес
+//const char* API_BASE_URL  = "https://app.tanker.yandex.net/api";    // Боевой адрес
 
-const char* API_KEY       = "YOUR_API_KEY"; // Bearer токен
-
-// Станции/оборудование
+const char* API_KEY       = "YOUR_API_KEY_PARAM"; // ключ, который ждёт API в query ?apikey=
 const char* STATION_ID    = "ALT-001";
-const char* NOZZLE_ID     = "N1";
-const char* DISPENSER_ID  = "D1";
+const char* COLUMN_ID     = "N1";                 // колонка/пистолет (как требует интеграция)
 
-const uint32_t POLL_PERIOD_MS = 5000;   // опрос новых заказов каждые 5с
-const uint32_t HTTP_TIMEOUT_MS = 10000; // таймаут HTTP
+const char* DISPENSER_ID  = "D1";                 // если нужно для start()
+const uint32_t HTTP_TIMEOUT_MS = 10000;
+const uint32_t POLL_PERIOD_MS  = 5000;
 
-// Если хотите pinning/verify, добавьте корневой сертификат сервера сюда
-// static const char* ROOT_CA = R"EOF(
+// Добавление сертификата
+// static const char* rootCACertificate = R"EOF(
 // -----BEGIN CERTIFICATE-----
-// ...
+// MIID... (обрезано для примера)
+// ...==
 // -----END CERTIFICATE-----
 // )EOF";
 
@@ -43,69 +43,83 @@ void wifi_initialize(){
   api_ping();
 }
 
-bool api_ping() {
+bool apiPing() {
   String resp;
+
   int code = with_retry([&]() {
-    return api_request("GET", "/v1/ping", "", resp);
+    return api_request("GET", "/v1/ping", "", resp, "");
   });
+
   if (code == 200) {
     Serial.println("[api] ping ok: " + resp);
     return true;
   }
-  Serial.printf("[api] ping fail (%d)\n", code);
+
+  Serial.printf("[api] ping fail (%d): %s\n", code, resp.c_str());
   return false;
 }
 
-int api_request(const String& method, const String& path, const String& body, String& responseOut) {
+
+
+int api_request(const String& method,
+               const String& path,
+               const String& body,
+               String& responseOut,
+               const String& extraQuery = "")
+{
   HTTPClient http;
   String url = String(API_BASE_URL) + path;
 
-  // HTTPS клиент
-  // tlsClient.setCACert(ROOT_CA);         // если используете корневой сертификат
-  tlsClient.setInsecure();                 // !!! для тестов
-  http.setConnectTimeout(HTTP_TIMEOUT_MS);
+  // обязательные query
+  url += "?apikey="    + String(API_KEY)
+      +  "&stationId=" + String(STATION_ID)
+      +  "&columnId="  + String(COLUMN_ID);
+
+  if (extraQuery.length() > 0) {
+    url += "&" + extraQuery;
+  }
+
+  WiFiClientSecure tls;
+
+  // ===== ВЫБОР ВАРИАНТА TLS =====
+  // Продакшн: проверяем сертификат
+  //tls.setCACert(rootCACertificate);
+
+  // Тест: если нужно обойти проверку — просто раскомментируй строку ниже
+  tls.setInsecure();
+
   http.setTimeout(HTTP_TIMEOUT_MS);
 
-  if (!http.begin(tlsClient, url)) {
+  if (!http.begin(tls, url)) {
     Serial.println("[http] begin() failed");
     return -1;
   }
 
-  // Заголовки
-  http.addHeader("Authorization", String("Bearer ") + API_KEY);
   http.addHeader("Accept", "application/json");
   if (method == "POST" || method == "PATCH") {
     http.addHeader("Content-Type", "application/json");
-    // Идемпотентный ключ для безопасных повторов
     http.addHeader("Idempotency-Key", uuidV4());
   }
 
-  // Отправка
-  int httpCode = -1;
-  if (method == "GET") {
-    httpCode = http.GET();
-  } else if (method == "POST") {
-    httpCode = http.POST(body);
-  } else if (method == "PATCH") {
-    httpCode = http.sendRequest("PATCH", (uint8_t*)body.c_str(), body.length());
-  } else {
+  int code = -1;
+  if (method == "GET")       code = http.GET();
+  else if (method == "POST") code = http.POST(body);
+  else if (method == "PATCH")code = http.sendRequest("PATCH", (uint8_t*)body.c_str(), body.length());
+  else {
     http.end();
-    Serial.println("[http] unsupported method");
     return -1;
   }
 
-  // Ответ
-  if (httpCode > 0) {
+  if (code > 0) {
     responseOut = http.getString();
-    Serial.printf("[http] %s %s -> %d\n", method.c_str(), url.c_str(), httpCode);
-    // Serial.println(responseOut);
+    Serial.printf("[http] %s %s -> %d\n", method.c_str(), url.c_str(), code);
   } else {
-    Serial.printf("[http] request failed, error: %s\n", http.errorToString(httpCode).c_str());
+    Serial.printf("[http] failed: %s\n", http.errorToString(code).c_str());
   }
-  http.end();
-  return httpCode;
-}
 
+  http.end();
+  return code;
+}
 
 // Синхронизации времени
 bool time_is_set() {
@@ -158,4 +172,88 @@ int with_retry(Fn fn, int maxAttempts, uint32_t baseDelayMs) {
     }
   }
   return -1;
+}
+
+
+static const char* kOrderRespLog = "/order_responses.jsonl";
+
+// helper: дописать строку в файл
+static bool appendJsonLine(const char* path, const String& jsonLine) {
+  File f = SPIFFS.open(path, FILE_APPEND, true);
+  if (!f) return false;
+  bool ok = f.print(jsonLine) && f.print('\n');
+  f.close();
+  return ok;
+}
+
+bool postTankerOrder(const JsonDocument& orderDoc, JsonDocument& respDoc) {
+  // 1) сериализуем тело
+  String body; 
+  serializeJson(orderDoc, body);
+
+  // 2) отправляем
+  String resp; 
+  int code = with_retry([&]() {
+    // apiRequest добавит ?apikey=...&stationId=...&columnId=...
+    return api_request("POST", "/tanker/order", body, resp, "");
+  }, 3, 500);
+
+  // 3) логирование «сырое»
+  Serial.printf("[api] /tanker/order -> %d\n", code);
+  // на всякий — сохраняем «как есть» (для аудита/дебага)
+  (void)appendJsonLine(kOrderRespLog, resp);
+
+  // 4) успешный ответ → парсим/сохраняем
+  if (code == 200) {
+    DeserializationError err = deserializeJson(respDoc, resp);
+    if (err) {
+      Serial.printf("[api] parse error: %s\n", err.c_str());
+      return false;
+    }
+    // также положим последний ответ в NVS
+    Preferences prefs;
+    prefs.begin("tanker", false);
+    prefs.putString("last_order_resp", resp);
+    prefs.end();
+
+    Serial.println("[api] /tanker/order OK");
+    return true;
+  }
+
+  // 5) типовые ошибки по спецификации
+  if (code == 400) {
+    Serial.printf("[api] 400 BAD_REQUEST: %s\n", resp.c_str());
+  } else if (code == 402) {
+    Serial.printf("[api] 402 FuelId+PriceFuel mismatch: %s\n", resp.c_str());
+  } else if (code >= 500) {
+    Serial.printf("[api] %d SERVER ERROR: %s\n", code, resp.c_str());
+  } else {
+    Serial.printf("[api] FAIL %d: %s\n", code, resp.c_str());
+  }
+  return false;
+}
+
+bool postTankerAccept(const String& orderId, JsonDocument& respDoc) {
+  String resp;
+
+  int code = with_retry([&]() {
+    // extraQuery добавит orderId=... к URL
+    return api_request("POST", "/tanker/accept", /*body=*/"", resp, "orderId=" + orderId);
+  }, 3, 500);
+
+  Serial.printf("[api] /tanker/accept -> %d\n", code);
+
+  if (code == 200) {
+    DeserializationError err = deserializeJson(respDoc, resp);
+    if (err) {
+      Serial.printf("[api] /tanker/accept parse error: %s\n", err.c_str());
+      return false;
+    }
+    return true;
+  }
+
+  if (code == 400) Serial.printf("[api] /tanker/accept 400 BAD_REQUEST: %s\n", resp.c_str());
+  else if (code >= 500) Serial.printf("[api] /tanker/accept %d SERVER ERROR: %s\n", code, resp.c_str());
+  else Serial.printf("[api] /tanker/accept FAIL %d: %s\n", code, resp.c_str());
+  return false;
 }
