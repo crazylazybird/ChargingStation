@@ -257,3 +257,166 @@ bool postTankerAccept(const String& orderId, JsonDocument& respDoc) {
   else Serial.printf("[api] /tanker/accept FAIL %d: %s\n", code, resp.c_str());
   return false;
 }
+
+// Оповещение о начале пролива
+// 
+// POST /tanker/fueling?apikey=...&orderId=...
+bool postTankerFueling(const String& orderId, JsonDocument& respDoc) {
+  String resp;
+  int code = with_retry([&](){
+    return api_request("POST", "/tanker/fueling", "", resp,
+                       "orderId=" + orderId);
+  }, 3, 500);
+
+  Serial.printf("[api] /tanker/fueling -> %d\n", code);
+
+  if (code == 200) {
+    auto err = deserializeJson(respDoc, resp);
+    if (err) {
+      Serial.printf("[api] fueling parse error: %s\n", err.c_str());
+      return false;
+    }
+    appendJsonLine(kOrderRespLog, resp);
+    Preferences p; 
+    p.begin("tanker", false); 
+    p.putString("last_fueling", resp); 
+    p.end();
+    return true;
+  }
+
+  Serial.printf("[api] fueling FAIL %d: %s\n", code, resp.c_str());
+  return false;
+}
+
+// 
+// Оповещение об объёме пролива
+bool postTankerVolume(const String& orderId, double litre, JsonDocument& respDoc) {
+  String resp;
+  
+  // Формируем extraQuery: orderId и litre
+  String extra = "orderId=" + orderId + "&litre=" + String(litre, 3); 
+  // String(litre, 3) → чтобы всегда было 3 знака после точки (например 12.345)
+
+  int code = with_retry([&](){
+    return api_request("POST", "/tanker/volume", "", resp, extra);
+  }, 3, 500);
+
+  Serial.printf("[api] /tanker/volume -> %d\n", code);
+
+  if (code == 200) {
+    auto err = deserializeJson(respDoc, resp);
+    if (err) {
+      // если тело пустое или не JSON — можно просто вернуть true
+      Serial.println("[api] volume no JSON body, treat as OK");
+      return true;
+    }
+    return true;
+  }
+
+  if (code == 400) Serial.printf("[api] /tanker/volume BAD_REQUEST: %s\n", resp.c_str());
+  else if (code >= 500) Serial.printf("[api] /tanker/volume SERVER ERROR: %s\n", resp.c_str());
+  else Serial.printf("[api] /tanker/volume FAIL %d: %s\n", code, resp.c_str());
+
+  return false;
+}
+
+
+// Формат: dd.MM.yyyy HH:mm:ss
+String formatExtendedDate(time_t t) {
+  struct tm tmv;
+  localtime_r(&t, &tmv);                 // если нужна строго UTC — замени на gmtime_r
+  char buf[20];                           // "dd.MM.yyyy HH:mm:ss" = 19 + '\0'
+  strftime(buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", &tmv);
+  return String(buf);
+}
+
+
+// POST /tanker/completed?apikey=...&orderId=...&litre=...&extendedOrderId=...&extendedDate=dd.MM.yyyy HH:mm:ss
+bool postTankerCompleted(const String& orderId,
+                         double litre,
+                         const String& extendedOrderId,
+                         time_t extendedDate,            // Unix time, будет отформатирован
+                         JsonDocument& respDoc)
+{
+  String resp;
+
+  // litre как текст с точкой; 3 знака после запятой достаточно для литров
+  String extra = "orderId=" + orderId +
+                 "&litre=" + String(litre, 3) +
+                 "&extendedOrderId=" + extendedOrderId +
+                 "&extendedDate=" + formatExtendedDate(extendedDate);
+
+  int code = with_retry([&](){
+    return api_request("POST", "/tanker/completed", "", resp, extra);
+  }, 3, 500);
+
+  Serial.printf("[api] /tanker/completed -> %d\n", code);
+
+  if (code == 200) {
+    // Ответ может быть пустым/не-JSON — считаем OK
+    auto err = deserializeJson(respDoc, resp);
+    if (err) {
+      Serial.println("[api] completed: no JSON body, treat as OK");
+      return true;
+    }
+    return true;
+  }
+
+  if (code == 400) Serial.printf("[api] /tanker/completed BAD_REQUEST: %s\n", resp.c_str());
+  else if (code >= 500) Serial.printf("[api] /tanker/completed SERVER ERROR: %s\n", code, resp.c_str());
+  else Serial.printf("[api] /tanker/completed FAIL %d: %s\n", code, resp.c_str());
+
+  return false;
+}
+
+// --- локальный percent-encode для значения в query ---
+// Разрешаем только RFC3986 unreserved: A-Z a-z 0-9 - _ . ~
+// Остальное кодируем по байтам UTF-8.
+static inline String pctEncode(const String& s) {
+  String out; out.reserve(s.length()*3);
+  const char* hex = "0123456789ABCDEF";
+  for (size_t i = 0; i < s.length(); ++i) {
+    uint8_t c = (uint8_t)s[i];
+    bool unreserved = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                      (c >= '0' && c <= '9') || c == '-' || c == '_' ||
+                      c == '.' || c == '~';
+    if (unreserved) { out += (char)c; }
+    else {
+      out += '%'; out += hex[c >> 4]; out += hex[c & 0x0F];
+    }
+  }
+  return out;
+}
+
+// POST /tanker/canceled?apikey=...&orderId=...&reason=...
+bool postTankerCanceled(const String& orderId,
+                        const String& reason,
+                        JsonDocument& respDoc)
+{
+  String resp;
+
+  // reason кодируем, т.к. возможны пробелы/кириллица/спецсимволы
+  String extra = "orderId=" + orderId + "&reason=" + pctEncode(reason);
+
+  int code = with_retry([&](){
+    return api_request("POST", "/tanker/canceled", /*body*/"", resp, extra);
+  }, 3, 500);
+
+  Serial.printf("[api] /tanker/canceled -> %d\n", code);
+
+  if (code == 200) {
+    // тело может быть пустым → считаем успехом даже если парсинг не удался
+    auto err = deserializeJson(respDoc, resp);
+    if (err) {
+      Serial.println("[api] canceled: empty/non-JSON body, OK");
+      return true;
+    }
+    return true;
+  }
+
+  if (code == 400) Serial.printf("[api] /tanker/canceled BAD_REQUEST: %s\n", resp.c_str());
+  else if (code >= 500) Serial.printf("[api] /tanker/canceled SERVER ERROR: %s\n", code, resp.c_str());
+  else Serial.printf("[api] /tanker/canceled FAIL %d: %s\n", code, resp.c_str());
+
+  return false;
+}
