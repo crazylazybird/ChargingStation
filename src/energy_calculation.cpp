@@ -47,3 +47,11 @@ float get_power(){
 float get_energy_total(){
     return energyTotal;
 }
+
+float get_voltage(){
+    return voltage;
+}
+
+float get_current(){
+    return current;
+}

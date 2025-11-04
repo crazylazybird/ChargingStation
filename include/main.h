@@ -4,6 +4,8 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <MicroOcpp.h>
+
 
 #include "uart.h"
 #include "vtk_protocol.h"
@@ -12,3 +14,5 @@
 #include "energy_calculation.h"
 #include "AMC1200B_driver.h"
 #include "yandex_fuel.h"
+#include "microOCPP_managment.h"
+

@@ -12,3 +12,5 @@ int bcd2dec(byte b1, byte b2, byte b3, byte b4);
 
 float get_power();
 float get_energy_total();
+float get_voltage();
+float get_current();
