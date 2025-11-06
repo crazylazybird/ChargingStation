@@ -10,6 +10,8 @@ const char* apiKey = "dominion";
 unsigned long previousMillis = 0;
 const unsigned long interval = 1000; // 1 секунда
 
+extern transactions payment;
+
 // Инициализация WiFi
 void init_wifi() {
     WiFi.begin(ssid, password);
@@ -39,6 +41,7 @@ void send_POST_json(float voltage, float current) {
         StaticJsonDocument<200> doc;
         doc["voltage"] = voltage;
         doc["current"] = current;
+        doc["status"] = payment.chargingStatus;
         String jsonStr;
         serializeJson(doc, jsonStr);
 

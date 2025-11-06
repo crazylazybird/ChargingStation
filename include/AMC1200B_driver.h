@@ -3,21 +3,22 @@
 
 
 #define SAMPLES 10  // Количество выборок для измерения
-#define CURRENT_POS A0  // Вход тока +
-#define CURRENT_NEG A1  // Вход тока -
-#define VOLTAGE_POS A2  // Вход напряжения +
-#define VOLTAGE_NEG A3  // Вход напряжения -
+#define CURRENT_POS 4  // Вход тока +
+#define CURRENT_NEG 5  // Вход тока -
+#define VOLTAGE_POS 6  // Вход напряжения +
+#define VOLTAGE_NEG 7  // Вход напряжения -
 
-#define EEPROM_DATA_ADDR 2           // Адрес данных в EEPROM
+#define EEPROM_DATA_ADDR_CALIBRATION 2           // Адрес данных в EEPROM
 
 
-float readCurrent();
-float readVoltage();
-void calibrateCurrent(float referenceValue);
-void calibrateVoltage(float referenceValue);
-void saveConfiguration();
-uint16_t calculateDataChecksum();
-uint16_t calculateCalibChecksum();
+float read_current();
+float read_voltage();
+void calibrate_current(float referenceValue);
+void calibrate_voltage(float referenceValue);
+uint16_t calculate_data_checksum();
+uint16_t calculate_calib_checksum();
+void save_configuration();
+void load_configuration();
 
 
 struct CalibrationData {

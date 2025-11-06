@@ -72,89 +72,115 @@ void UART_POS_received_data(){
 */
 
 void UART_Commands_processing(){
-    if (UART0_DEBUG_PORT.available() > 0) {
-    String command = UART0_DEBUG_PORT.readStringUntil('\n');
-    command.trim();
+if (UART0_DEBUG_PORT.available() > 0) {
+  String command = UART0_DEBUG_PORT.readStringUntil('\n');
+  command.trim();
 
-    if (command == "IDLE") {
-      stayIDLE = !stayIDLE;
-          UART0_DEBUG_PORT.print("режим stay-IDLE is ");
-          UART0_DEBUG_PORT.println(stayIDLE);
-    } else if (command == "IDL") {
-      send_IDL();
-    } else if (command == "DIS") {
-      send_DIS();
-    } else if (command.startsWith("VRP")) {
-      // Обработка обычной оплаты
-      int spacePos = command.indexOf(' ');
-      if (spacePos != -1) {
-        String amountStr = command.substring(spacePos + 1);
-        long amount = amountStr.toInt();
-        if (amount > 0 && amount <= 1000000) {
-          send_VRP(amount);
-        } else {
-          UART0_DEBUG_PORT.print("Ошибка: диапазон платежа (1-1000000 коп.) ");
-          UART0_DEBUG_PORT.println(amount);
-        }
-      }
-    } else if (command.startsWith("PAY")) {
-          // Обработка команды оплаты
-          int spacePos = command.indexOf(' ');
-          if (spacePos != -1) {
-              String amountStr = command.substring(spacePos + 1);
-              long amount = amountStr.toInt();
-              start_payment(amount);
-          }
-    } else if (command.startsWith("REFUND")) {
-      // Обработка возврата
-      int spacePos = command.indexOf(' ');
-      if (spacePos != -1) {
-        String params = command.substring(spacePos + 1);
-        int secondSpace = params.indexOf(' ');
-        if (secondSpace != -1) {
-          int amount = params.substring(0, secondSpace).toInt();
-          int operationNumber = params.substring(secondSpace + 1).toInt();
+  if (command == "IDLE") {
+    stayIDLE = !stayIDLE;
+    UART0_DEBUG_PORT.print("режим stay-IDLE is ");
+    UART0_DEBUG_PORT.println(stayIDLE);
 
-          if (amount > 0 && amount <= 1000000 && operationNumber > 0) {
-            //sendREFUND(amount, operationNumber);
-          } else {
-            UART0_DEBUG_PORT.println("Ошибка: неверные параметры возврата");
-          }
-        }
-      }
-    } else if (command.startsWith("HEX")) {
-      String hexString = command.substring(8);
-      send_HEX(hexString);
-    } else if (command.startsWith("ESEND")) {
-          // Обработка команды оплаты
-          int spacePos = command.indexOf(' ');
-          if (spacePos != -1) {
-              String doingCommand = command.substring(spacePos + 1);
-              softserial_energy_port_send_command(doingCommand);
-              UART0_DEBUG_PORT.print("send command: ");
-              UART0_DEBUG_PORT.println(doingCommand);
-          }
-    } else if (command.startsWith("dcdHEX")) {
-      // Извлекаем HEX-строку из команды
-      String hexString = command.substring(10);
-      // Проверяем, что строка не пустая
-      if (hexString.length() > 0) {
-        // Парсим сообщение
-        decode_HEX(hexString);
+  } else if (command == "IDL") {
+    send_IDL();
+
+  } else if (command == "DIS") {
+    send_DIS();
+
+  } else if (command.startsWith("VRP")) {
+    int spacePos = command.indexOf(' ');
+    if (spacePos != -1) {
+      String amountStr = command.substring(spacePos + 1);
+      long amount = amountStr.toInt();
+      if (amount > 0 && amount <= 1000000) {
+        send_VRP(amount);
       } else {
-        UART0_DEBUG_PORT.println("Ошибка: пустая HEX-строка");
+        UART0_DEBUG_PORT.print("Ошибка: диапазон платежа (1-1000000 коп.) ");
+        UART0_DEBUG_PORT.println(amount);
       }
-    } else if (command.startsWith("CRC")) {
-      String hexString = command.substring(8);
-      if (hexString.length() > 0) {
-        calculate_CRC(hexString);
-      } else {
-        UART0_DEBUG_PORT.println("Ошибка: пустая HEX-строка");
-      }
-    } else {
-      UART0_DEBUG_PORT.println("Неизвестная команда");
     }
+
+  } else if (command.startsWith("PAY")) {
+    int spacePos = command.indexOf(' ');
+    if (spacePos != -1) {
+      String amountStr = command.substring(spacePos + 1);
+      long amount = amountStr.toInt();
+      start_payment(amount);
+    }
+
+  } else if (command.startsWith("REFUND")) {
+    int spacePos = command.indexOf(' ');
+    if (spacePos != -1) {
+      String params = command.substring(spacePos + 1);
+      int secondSpace = params.indexOf(' ');
+      if (secondSpace != -1) {
+        int amount = params.substring(0, secondSpace).toInt();
+        int operationNumber = params.substring(secondSpace + 1).toInt();
+        if (amount > 0 && amount <= 1000000 && operationNumber > 0) {
+          // sendREFUND(amount, operationNumber);
+        } else {
+          UART0_DEBUG_PORT.println("Ошибка: неверные параметры возврата");
+        }
+      }
+    }
+
+  } else if (command.startsWith("HEX")) {
+    String hexString = command.substring(8);
+    send_HEX(hexString);
+
+  } else if (command.startsWith("ESEND")) {
+    int spacePos = command.indexOf(' ');
+    if (spacePos != -1) {
+      String doingCommand = command.substring(spacePos + 1);
+      softserial_energy_port_send_command(doingCommand);
+      UART0_DEBUG_PORT.print("send command: ");
+      UART0_DEBUG_PORT.println(doingCommand);
+    }
+
+  } else if (command.startsWith("dcdHEX")) {
+    String hexString = command.substring(10);
+    if (hexString.length() > 0) {
+      decode_HEX(hexString);
+    } else {
+      UART0_DEBUG_PORT.println("Ошибка: пустая HEX-строка");
+    }
+
+  } else if (command.startsWith("CRC")) {
+    String hexString = command.substring(8);
+    if (hexString.length() > 0) {
+      calculate_CRC(hexString);
+    } else {
+      UART0_DEBUG_PORT.println("Ошибка: пустая HEX-строка");
+    }
+
+  // ====== ДОБАВЛЕНО: КАЛИБРОВКИ И СОХРАНЕНИЕ ======
+  } else if (command.startsWith("CALI")) {            // CALI <value>
+    int spacePos = command.indexOf(' ');
+    if (spacePos != -1) {
+      float ref = command.substring(spacePos + 1).toFloat();
+      calibrate_current(ref);
+      save_configuration();
+      UART0_DEBUG_PORT.println("Калибровка сохранена");
+    } else {
+      UART0_DEBUG_PORT.println("Ошибка: укажите значение тока");
+    }
+
+  } else if (command.startsWith("CALV")) {            // CALV <value>
+    int spacePos = command.indexOf(' ');
+    if (spacePos != -1) {
+      float ref = command.substring(spacePos + 1).toFloat();
+      calibrate_voltage(ref);
+      save_configuration();
+      UART0_DEBUG_PORT.println("Калибровка сохранена");
+    } else {
+      UART0_DEBUG_PORT.println("Ошибка: укажите значение напряжения");
+    }
+
+  } else {
+    UART0_DEBUG_PORT.println("Неизвестная команда");
   }
+}
+
 }
 /*
 ----------------------------------------------------------------

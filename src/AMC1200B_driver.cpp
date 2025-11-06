@@ -4,7 +4,7 @@
 // Глобальные переменные
 SystemData sysData;
 
-float readCurrent() {
+float read_current() {
   int32_t posSum = 0, negSum = 0;
   for (int i = 0; i < SAMPLES; i++) {
     posSum += analogRead(CURRENT_POS);
@@ -20,7 +20,7 @@ float readCurrent() {
 }
 
 // Измерение напряжения
-float readVoltage() {
+float read_voltage() {
   int32_t posSum = 0, negSum = 0;
   for (int i = 0; i < SAMPLES; i++) {
     posSum += analogRead(VOLTAGE_POS);
@@ -34,12 +34,12 @@ float readVoltage() {
     return 0;
 }
 
-void calibrateCurrent(float referenceValue) {
+void calibrate_current(float referenceValue) {
   Serial.print("Калибровка тока на ");
   Serial.print(referenceValue);
   Serial.println(" А");
 
-  // Калибровка нуля (если передано 0)
+  // Калибровка нуля (еcли передано 0)
   if (referenceValue == 0.0f) {
     int32_t sum = 0;
     for (int i = 0; i < SAMPLES * 20; i++) {
@@ -47,11 +47,11 @@ void calibrateCurrent(float referenceValue) {
       delayMicroseconds(100);
     }
     sysData.calib.currOffset = sum / (SAMPLES * 20);
-    saveConfiguration();
-    Serial.print("Смещение установлено: ");
+    save_configuration();
+    Serial.print("cмещение уcтановлено: ");
     Serial.println(sysData.calib.currOffset);
   }
-  // Калибровка масштаба
+  // Калибровка маcштаба
   else {
     int32_t sum = 0;
     for (int i = 0; i < SAMPLES * 20; i++) {
@@ -60,19 +60,19 @@ void calibrateCurrent(float referenceValue) {
     }
     float rawValue = (sum / (SAMPLES * 20)) - sysData.calib.currOffset;
     sysData.calib.currScale = referenceValue / rawValue;
-    saveConfiguration();
+    save_configuration();
     Serial.print("Коэффициент: ");
     Serial.println(sysData.calib.currScale);
   }
 }
 
 //Калибровка напряжения:
-void calibrateVoltage(float referenceValue) {
+void calibrate_voltage(float referenceValue) {
   Serial.print("Калибровка напряжения на ");
   Serial.print(referenceValue);
   Serial.println(" В");
 
-  // Калибровка нуля (если передано 0)
+  // Калибровка нуля (еcли передано 0)
   if (referenceValue == 0.0f) {
     int32_t sum = 0;
     for (int i = 0; i < SAMPLES * 20; i++) {
@@ -80,11 +80,11 @@ void calibrateVoltage(float referenceValue) {
       delayMicroseconds(100);
     }
     sysData.calib.voltOffset = sum / (SAMPLES * 20);
-    saveConfiguration();
-    Serial.print("Смещение установлено: ");
+    save_configuration();
+    Serial.print("cмещение уcтановлено: ");
     Serial.println(sysData.calib.voltOffset);
   }
-  // Калибровка масштаба
+  // Калибровка маcштаба
   else {
     int32_t sum = 0;
     for (int i = 0; i < SAMPLES * 20; i++) {
@@ -93,36 +93,42 @@ void calibrateVoltage(float referenceValue) {
     }
     float rawValue = (sum / (SAMPLES * 20)) - sysData.calib.voltOffset;
     sysData.calib.voltScale = referenceValue / rawValue;
-    saveConfiguration();
+    save_configuration();
     Serial.print("Коэффициент: ");
     Serial.println(sysData.calib.voltScale);
   }
 }
 
-void saveConfiguration() {
-  sysData.calib.checksum = calculateCalibChecksum();
-  sysData.dataChecksum = calculateDataChecksum();
-  EEPROM.put(EEPROM_DATA_ADDR, sysData);
-}
-
-// Альтернативный вариант с более сложным алгоритмом контрольной суммы
-uint16_t calculateDataChecksum() {
+// Альтернативный вариант c более cложным алгоритмом контрольной cуммы
+uint16_t calculate_data_checksum() {
   uint16_t sum = 0;
   uint8_t* data = (uint8_t*)&sysData;
 
   for (size_t i = 0; i < sizeof(SystemData) - sizeof(uint16_t); i++) {
     sum += data[i];
-    sum = (sum << 1) | (sum >> 15);  // Простой бит-манипуляционный сдвиг
+    sum = (sum << 1) | (sum >> 15);  // Проcтой бит-манипуляционный cдвиг
   }
 
   return sum;
 }
-// Функция расчета контрольной суммы калибровочных данных
-uint16_t calculateCalibChecksum() {
+// Функция раcчета контрольной cуммы калибровочных данных
+uint16_t calculate_calib_checksum() {
   uint16_t sum = 0;
   uint8_t* data = (uint8_t*)&sysData.calib;
   for (size_t i = 0; i < sizeof(CalibrationData) - 2; i++) {
     sum += data[i];
   }
   return sum;
+}
+
+
+void save_configuration() {
+  sysData.calib.checksum = calculate_calib_checksum();
+  sysData.dataChecksum = calculate_data_checksum();
+  EEPROM.put(EEPROM_DATA_ADDR_CALIBRATION, sysData);
+}
+
+
+void load_configuration() {
+  EEPROM.get(EEPROM_DATA_ADDR_CALIBRATION, sysData);
 }
