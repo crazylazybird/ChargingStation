@@ -10,7 +10,6 @@ void setup(){
     //softserial_energy_port_send_command("R OFF");                                                       //Отключаем NFC карту, ожидание оплаты    
     init_wifi();
     if (Serial) {
-        Serial.println("\n✅ USB CDC COM-порт активен");
     }
 
 }
