@@ -1,0 +1,31 @@
+{
+  "name": "ESP32-S3-WROOM-1U (4MB, no PSRAM)",
+  "vendor": "Espressif",
+  "url": "https://www.espressif.com/en/products/modules/esp32-s3-wroom-1",
+  "frameworks": ["arduino"],
+
+  "build": {
+    "core": "arduino",
+    "mcu": "esp32s3",
+    "variant": "esp32s3",
+    "f_cpu": "240000000L",
+    "f_flash": "80000000",
+    "flash_mode": "qio",
+    "arduino": {
+      "usb_cdc_on_boot": "1",
+      "usb_mode": "1",
+      "tinyusb": "enabled"
+    }
+  },
+
+  "upload": {
+    "maximum_size": 4194304,
+    "maximum_ram_size": 327680,
+    "flash_size": "4MB",
+    "speed": 921600,
+    "protocol": "esptool"
+  },
+
+  "connectivity": ["wifi", "bluetooth"],
+  "debug": { "openocd_target": "esp32s3.cfg" }
+}
