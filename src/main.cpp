@@ -9,9 +9,13 @@ void setup(){
     //softserial_energy_port_send_command("E");                                                           //сброс счетчика энергии
     //softserial_energy_port_send_command("R OFF");                                                       //Отключаем NFC карту, ожидание оплаты    
     init_wifi();
+    init_relay();
     if (Serial) {
     }
-
+    digitalWrite(RELAY_PIN, LOW);
+    EEPROM_init_configuration();
+    load_configuration();
+    reset_energy_counter();
 }
 
 /*
@@ -51,8 +55,14 @@ void loop() {
     process_received_energy_data();             // Прием данных об электроэнергии от ардуины (будет убрана в последующем и считывание будет происходить на esp32)
     processing_received_POS_message();          // Обработка буфера принятых байтов от терминала и декодирование сообщения
     charging_managment();                       // Обработка процесса зарядки в случае различных сценариев
-
-    
+    update_energy();
+    // UART0_DEBUG_PORT.println(read_current());
+    // UART0_DEBUG_PORT.println(read_voltage());
+    // delay(2000);
+    // digitalWrite(RELAY_PIN, HIGH); // включить реле
+    // delay(2000);
+    // digitalWrite(RELAY_PIN, LOW);  // выключить реле
+    // delay(2000);
     //send_POST_json(2, 3); // отправляем JSON
 
 }

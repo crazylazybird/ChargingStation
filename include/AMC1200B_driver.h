@@ -3,12 +3,15 @@
 
 
 #define SAMPLES 10  // Количество выборок для измерения
-#define CURRENT_POS 4  // Вход тока +
-#define CURRENT_NEG 5  // Вход тока -
-#define VOLTAGE_POS 6  // Вход напряжения +
-#define VOLTAGE_NEG 7  // Вход напряжения -
+#define CURRENT_POS 5  // Вход тока +
+#define CURRENT_NEG 4  // Вход тока -
+#define VOLTAGE_POS 7  // Вход напряжения +
+#define VOLTAGE_NEG 6  // Вход напряжения -
 
 #define EEPROM_DATA_ADDR_CALIBRATION 2           // Адрес данных в EEPROM
+#define EEPROM_SIZE 512
+
+#define ENERGY_UPDATE_INTERVAL 1000  // интервал обновления (мс)
 
 
 float read_current();
@@ -19,6 +22,11 @@ uint16_t calculate_data_checksum();
 uint16_t calculate_calib_checksum();
 void save_configuration();
 void load_configuration();
+void EEPROM_init_configuration();
+float read_power();
+void update_energy();
+float read_total_energy();
+void reset_energy_counter();
 
 
 struct CalibrationData {

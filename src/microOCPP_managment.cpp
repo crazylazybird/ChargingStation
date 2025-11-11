@@ -3,7 +3,6 @@
 #include <Arduino.h>
 
 // ================== НАСТРОЙКИ ==================
-const uint8_t  RELAY_PIN = 2;                 // пин реле/контактора
 const float    CURRENT_THRESHOLD_A = 0.5f;    // ток, выше которого считаем "подключено"
 const uint32_t METER_REPORT_INTERVAL = 5000;  // период лога в Serial (мс)
 const uint32_t STATUS_LOG_INTERVAL   = 5000;  // период локального статуса в Serial (мс)
@@ -25,8 +24,6 @@ static const char* derive_local_status(bool ocppAllow, bool hasLoad, bool relay)
 
 // ================== ИНИЦИАЛИЗАЦИЯ ==================
 void microOCPP_initialize() {
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW); // реле выключено по умолчанию
 
   // Инициализация MicroOCPP (без регистрации sampler'ов — их у твоей версии нет)
   mocpp_initialize(OCPP_SERVER_URL, CHARGE_BOX_ID, "ESP32 Charging Station", "MyCompany");
