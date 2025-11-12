@@ -235,7 +235,7 @@ void handle_successful_payment() {
     send_IDL();
     stayIDLE = false;
     UART0_DEBUG_PORT.println("Оплата успешно проведена");
-  
+    payment.paidTimeUTC = getISO8601Time();
     payment.paymentStatus = PAID;
     payment.paidMinor = receivedTLV.amount;
     payment.kWattPerHourAvailable += payment.paidMinor / PRICE_FOR_ONE_KWHOUR;  //возможно провести несколько оплат в рамках одной сессии зарядки
@@ -270,6 +270,33 @@ void charging_managment(){
     #define REFUNDPERIOD 15000
     static unsigned long debugTime = millis();
     static unsigned long debugRefundTime = millis();
+
+    if (0) {//millis() - debugTime > 3000){  
+      UART0_DEBUG_PORT.print("Статус зарядки = ");
+      UART0_DEBUG_PORT.print(payment.chargingStatus);    
+      UART0_DEBUG_PORT.print(" :   Текущая мощность, Вт: ");
+      UART0_DEBUG_PORT.print(read_power());
+      UART0_DEBUG_PORT.print(";  Текущее напряжение, В: ");
+      UART0_DEBUG_PORT.print(read_voltage());
+      UART0_DEBUG_PORT.print(";  Текущий ток, А: ");
+      UART0_DEBUG_PORT.print(read_current());
+      UART0_DEBUG_PORT.print(";  Энергии потрачено = ");
+      UART0_DEBUG_PORT.print(read_total_energy());
+      UART0_DEBUG_PORT.print(" кВтч из = ");
+      UART0_DEBUG_PORT.print(payment.kWattPerHourAvailable);
+      UART0_DEBUG_PORT.println(" кВтч");
+
+      UART0_DEBUG_PORT.print("Статус оплаты = ");
+      UART0_DEBUG_PORT.print(payment.paymentStatus);
+      UART0_DEBUG_PORT.print("  Потрачено: ");
+      UART0_DEBUG_PORT.print(read_total_energy()*PRICE_FOR_ONE_KWHOUR);
+      UART0_DEBUG_PORT.print("  коп. из: ");
+      UART0_DEBUG_PORT.print(payment.paidMinor);
+      UART0_DEBUG_PORT.print(" коп.; на возврат: ");
+      UART0_DEBUG_PORT.print(refundAmount);
+      UART0_DEBUG_PORT.println(" коп.");
+      debugTime = millis();
+    }  
 
     if ((refundAmount) && (millis() - debugRefundTime > REFUNDPERIOD)){
       send_FIN(amountFIN, opNumberPrev); //финализация расхода средств для возврата остатка
@@ -310,7 +337,7 @@ void charging_managment(){
       switch (payment.chargingStatus)
       {
       case WAITING_TO_CHARGE:
-
+        digitalWrite(RELAY_PIN, HIGH);
         break;
       case START_TO_CHARGE:
         reset_energy_counter();
@@ -346,7 +373,7 @@ void charging_managment(){
         UART0_DEBUG_PORT.println("-  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -");
         UART0_DEBUG_PORT.println("СТОП! остановка зарядки"); 
         //softserial_energy_port_send_command("R ON");                                                              //Имитация прикладывания карты
-        digitalWrite(RELAY_PIN, LOW);
+        digitalWrite(RELAY_PIN, HIGH);
         UART0_DEBUG_PORT.println("реле включено для оплаты NFC");                                              //для останова процесса зарядки
 
         break; 
@@ -397,18 +424,20 @@ void charging_managment(){
         UART0_DEBUG_PORT.print("кВтч; Было израсходовано = ");
         UART0_DEBUG_PORT.print(read_total_energy());
         UART0_DEBUG_PORT.println(" кВтч");
+        send_POST_json(payment.paidTimeUTC, payment.paidMinor, 0, read_total_energy());
         payment.kWattPerHourAvailable = 0.0;                                                                    //сброс оплаты так как средства закончились
         payment.paidMinor = 0.0;
         //softserial_energy_port_send_command("E");                                                               // Обнулить счетчик электроэнергии на Arduino    
         reset_energy_counter();
         stayIDLE = true;
-
+        
         break;
 
       case REFUND:
         send_IDL();
         UART0_DEBUG_PORT.println("<  >  <  >  <  >  <  >  <  >  <  >  <  >  <  >  <  >");
         UART0_DEBUG_PORT.print("Будет выполнен возврат средств. Остаток: ");
+        
         amountFIN = read_total_energy()*PRICE_FOR_ONE_KWHOUR; //в копейках
         opNumberPrev = receivedTLV.opNumber;
         refundAmount = long(payment.paidMinor) - amountFIN;
@@ -418,6 +447,7 @@ void charging_managment(){
         UART0_DEBUG_PORT.print(payment.paidMinor);
         UART0_DEBUG_PORT.print(" коп.; израсходовано: ");
         UART0_DEBUG_PORT.println(amountFIN);
+        send_POST_json(payment.paidTimeUTC, payment.paidMinor, refundAmount, read_total_energy());
         debugRefundTime = millis();
         reset_energy_counter();
         break;
@@ -441,32 +471,7 @@ void charging_managment(){
     }
 
 
-    if (millis() - debugTime > 3000){  
-      UART0_DEBUG_PORT.print("Статус зарядки = ");
-      UART0_DEBUG_PORT.print(payment.chargingStatus);    
-      UART0_DEBUG_PORT.print(" :   Текущая мощность, Вт: ");
-      UART0_DEBUG_PORT.print(read_power());
-      UART0_DEBUG_PORT.print(";  Текущее напряжение, В: ");
-      UART0_DEBUG_PORT.print(read_voltage());
-      UART0_DEBUG_PORT.print(";  Текущий ток, А: ");
-      UART0_DEBUG_PORT.print(read_current());
-      UART0_DEBUG_PORT.print(";  Энергии потрачено = ");
-      UART0_DEBUG_PORT.print(read_total_energy());
-      UART0_DEBUG_PORT.print(" кВтч из = ");
-      UART0_DEBUG_PORT.print(payment.kWattPerHourAvailable);
-      UART0_DEBUG_PORT.println(" кВтч");
-
-      UART0_DEBUG_PORT.print("Статус оплаты = ");
-      UART0_DEBUG_PORT.print(payment.paymentStatus);
-      UART0_DEBUG_PORT.print("  Потрачено: ");
-      UART0_DEBUG_PORT.print(read_total_energy()*PRICE_FOR_ONE_KWHOUR);
-      UART0_DEBUG_PORT.print("  коп. из: ");
-      UART0_DEBUG_PORT.print(payment.paidMinor);
-      UART0_DEBUG_PORT.print(" коп.; на возврат: ");
-      UART0_DEBUG_PORT.print(refundAmount);
-      UART0_DEBUG_PORT.println(" коп.");
-      debugTime = millis();
-    }  
+    
 
 
 

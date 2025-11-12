@@ -5,8 +5,9 @@
 #include <vector>
 #include <string>
 #include <MicroOcpp.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 #include <ESP_DASH.h>
-
 
 #include "uart.h"
 #include "vtk_protocol.h"

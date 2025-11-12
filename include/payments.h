@@ -46,5 +46,6 @@ struct transactions{
     unsigned long   lastTime;
     ChargingStatus chargingStatus;
     ChargingStatus chargingStatusPrev;
+    String paidTimeUTC;
 };
 
