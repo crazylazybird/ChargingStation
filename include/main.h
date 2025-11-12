@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <MicroOcpp.h>
+#include <ESP_DASH.h>
 
 
 #include "uart.h"
