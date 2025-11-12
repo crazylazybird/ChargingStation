@@ -133,3 +133,39 @@ void clear_buffer() {
   UART0_DEBUG_PORT.println("Буфер очищен");
   //UART0_DEBUG_PORT.println("-----------------------------------------------");
 }
+
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
+
+// Инициализация WiFi
+void init_time_client() {
+    timeClient.begin();
+}
+
+String getISO8601Time() {
+  timeClient.update();
+
+  unsigned long epochTime = timeClient.getEpochTime();
+  int hours = (epochTime  % 86400L) / 3600;
+  int minutes = (epochTime % 3600) / 60;
+  int seconds = epochTime % 60;
+  
+  // Время в формате YYYY-MM-DDTHH:mm:ss.sssZ
+  // Миллисекунды получить из millis() % 1000
+  unsigned int ms = millis() % 1000;
+
+  // Преобразуем в необходимый формат
+  char buffer[30];
+  struct tm * timeinfo = gmtime((time_t *)&epochTime);
+  snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+           timeinfo->tm_year + 1900,
+           timeinfo->tm_mon + 1,
+           timeinfo->tm_mday,
+           hours,
+           minutes,
+           seconds,
+           ms);
+
+  return String(buffer);
+}

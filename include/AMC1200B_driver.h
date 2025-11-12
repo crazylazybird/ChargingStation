@@ -24,9 +24,13 @@ void save_configuration();
 void load_configuration();
 void EEPROM_init_configuration();
 float read_power();
-void update_energy();
-float read_total_energy();
 void reset_energy_counter();
+void update_measurements();
+
+float get_voltage();
+float get_current();
+float get_power();
+float get_total_energy();
 
 
 struct CalibrationData {
@@ -44,5 +48,11 @@ struct SystemData {
   unsigned long lastSave;    // Время последнего сохранения
   unsigned long lastUpdate;  // Время последнего обновления измерений
   uint16_t dataChecksum;     // Контрольная сумма
+};
+
+struct Measurements {
+  float voltage;
+  float current;
+  float power;
 };
 

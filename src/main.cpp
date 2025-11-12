@@ -8,14 +8,17 @@ void setup(){
     UART_Setup();
     //softserial_energy_port_send_command("E");                                                           //сброс счетчика энергии
     //softserial_energy_port_send_command("R OFF");                                                       //Отключаем NFC карту, ожидание оплаты    
-    init_wifi();
     init_relay();
+    init_wifi_connection();
     if (Serial) {
     }
     digitalWrite(RELAY_PIN, LOW);
     EEPROM_init_configuration();
+    init_time_client();
     load_configuration();
     reset_energy_counter();
+    init_web_interface();
+
 }
 
 /*
@@ -52,10 +55,11 @@ void loop() {
     UART_Commands_processing();                 // Обработка команд меню для тестирования терминала 
     UART_POS_received_data();                   // Прием байтов от терминала и запись в буфер для последующей обработки 
     send_IDLE();                                // Периодическая отправка сообщения терминалу чтобы он был готов принять оплату, иначе будет сообщение что оплата не принимается 
-    process_received_energy_data();             // Прием данных об электроэнергии от ардуины (будет убрана в последующем и считывание будет происходить на esp32)
+    //process_received_energy_data();             // Прием данных об электроэнергии от ардуины (будет убрана в последующем и считывание будет происходить на esp32)
     processing_received_POS_message();          // Обработка буфера принятых байтов от терминала и декодирование сообщения
     charging_managment();                       // Обработка процесса зарядки в случае различных сценариев
-    update_energy();
+    update_measurements();
+    loop_web_interface();
     // UART0_DEBUG_PORT.println(read_current());
     // UART0_DEBUG_PORT.println(read_voltage());
     // delay(2000);

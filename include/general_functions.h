@@ -8,3 +8,6 @@ byte hex_char_to_byte(char c);
 byte convert_hex_string_to_byte(const String& hexStr);
 void clear_buffer();
 uint16_t calculate_CRC16(const uint8_t* data, int length);
+
+void init_time_client();
+String getISO8601Time();

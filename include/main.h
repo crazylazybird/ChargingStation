@@ -7,7 +7,11 @@
 #include <MicroOcpp.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include <ESP_DASH.h>
+#include <ESPDash.h>
+
+#include <WiFi.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
 #include "uart.h"
 #include "vtk_protocol.h"
@@ -19,4 +23,6 @@
 #include "microOCPP_managment.h"
 #include "telegram_bot.h"
 #include "relay.h"
+#include "wifi_connection.h"
+#include "web_interface.h"
 

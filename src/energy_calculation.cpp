@@ -40,18 +40,18 @@ void parse_energy_data(byte* data, int length) {
     // UART0_DEBUG_PORT.print("Энергия: "); UART0_DEBUG_PORT.print(energyTotal); UART0_DEBUG_PORT.println(" кВт·ч");
 }
 
-float get_power(){
-    return power;
-}
+// float get_power(){
+//     return power;
+// }
 
-float get_energy_total(){
-    return energyTotal;
-}
+// float get_energy_total(){
+//     return energyTotal;
+// }
 
-float get_voltage(){
-    return voltage;
-}
+// float get_voltage(){
+//     return voltage;
+// }
 
-float get_current(){
-    return current;
-}
+// float get_current(){
+//     return current;
+// }

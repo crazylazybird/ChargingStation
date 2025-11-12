@@ -3,6 +3,30 @@
 
 // Глобальные переменные
 SystemData sysData;
+Measurements measurments;
+
+
+void update_measurements(){
+  measurments.current = read_current();
+  measurments.voltage = read_voltage();
+  measurments.power   = measurments.current * measurments.voltage;
+
+  static float energySum = 0.0f;
+  // Получаем текущую мощность
+  float power = measurments.power;
+
+  // Накопление энергии с учетом времени в кВт-ч
+  energySum += power * (millis() - sysData.lastUpdate) / 3600000000.0f;
+
+  // Обновление каждые ENERGY_UPDATE_INTERVAL мс
+  if (millis() - sysData.lastUpdate >= ENERGY_UPDATE_INTERVAL) {
+    sysData.totalEnergy += energySum;
+    sysData.lastUpdate = millis();
+    energySum = 0.0f;
+    save_configuration();
+  }
+}
+
 
 float read_current() {
   int32_t posSum = 0, negSum = 0;
@@ -37,13 +61,23 @@ float read_voltage() {
     return 0.0f;
 }
 
-float read_power(){
-  return read_voltage()*read_current();
+float get_voltage(){
+  return measurments.voltage;
 }
 
-float read_total_energy(){
+float get_current(){
+  return measurments.current;
+}
+
+float get_power(){
+  return measurments.power;
+}
+
+float get_total_energy(){
   return sysData.totalEnergy;
 }
+
+
 
 // Функция сброса счетчика энергии
 void reset_energy_counter() {
@@ -52,23 +86,6 @@ void reset_energy_counter() {
   Serial.println("Счетчик энергии сброшен");
 }
 
-// Функция учета энергии
-void update_energy() {
-  static float energySum = 0.0f;
-  // Получаем текущую мощность
-  float power = read_power();
-
-  // Накопление энергии с учетом времени в кВт-ч
-  energySum += power * (millis() - sysData.lastUpdate) / 3600000000.0f;
-
-  // Обновление каждые ENERGY_UPDATE_INTERVAL мс
-  if (millis() - sysData.lastUpdate >= ENERGY_UPDATE_INTERVAL) {
-    sysData.totalEnergy += energySum;
-    sysData.lastUpdate = millis();
-    energySum = 0.0f;
-    save_configuration();
-  }
-}
 
 
 void calibrate_current(float referenceValue) {
