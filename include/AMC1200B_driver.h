@@ -5,8 +5,8 @@
 #define SAMPLES 10  // Количество выборок для измерения
 #define CURRENT_POS 5  // Вход тока +
 #define CURRENT_NEG 4  // Вход тока -
-#define VOLTAGE_POS 7  // Вход напряжения +
-#define VOLTAGE_NEG 6  // Вход напряжения -
+#define VOLTAGE_POS 6  // Вход напряжения +
+#define VOLTAGE_NEG 7  // Вход напряжения -
 
 #define EEPROM_DATA_ADDR_CALIBRATION 2           // Адрес данных в EEPROM
 #define EEPROM_SIZE 512

@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 #include <MicroOcpp.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 
 #include "uart.h"
