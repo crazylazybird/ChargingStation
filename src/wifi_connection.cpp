@@ -1,10 +1,10 @@
 #include "main.h"
 
 // WiFi credentials
-//const char* ssid = "Anton";
-//const char* password = "11223360";
-const char* ssid = "VINcoder";
-const char* password = "1234567890";
+const char* ssid = "Anton";
+const char* password = "11223360";
+//const char* ssid = "VINcoder";
+//const char* password = "1234567890";
 
 
 

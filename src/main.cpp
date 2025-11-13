@@ -18,6 +18,7 @@ void setup(){
     load_configuration();
     reset_energy_counter();
     init_web_interface();
+    microOCPP_initialize();
 
 }
 
@@ -60,6 +61,7 @@ void loop() {
     charging_managment();                       // Обработка процесса зарядки в случае различных сценариев
     update_measurements();
     loop_web_interface();
+    microOCPP_loop();
     // UART0_DEBUG_PORT.println(read_current());
     // UART0_DEBUG_PORT.println(read_voltage());
     // delay(2000);
