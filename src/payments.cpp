@@ -271,30 +271,30 @@ void charging_managment(){
     static unsigned long debugTime = millis();
     static unsigned long debugRefundTime = millis();
 
-    if (0) {//millis() - debugTime > 3000){  
+    if (millis() - debugTime > 3000){  
       UART0_DEBUG_PORT.print("Статус зарядки = ");
       UART0_DEBUG_PORT.print(payment.chargingStatus);    
-      UART0_DEBUG_PORT.print(" :   Текущая мощность, Вт: ");
-      UART0_DEBUG_PORT.print(get_power());
-      UART0_DEBUG_PORT.print(";  Текущее напряжение, В: ");
-      UART0_DEBUG_PORT.print(get_voltage());
-      UART0_DEBUG_PORT.print(";  Текущий ток, А: ");
-      UART0_DEBUG_PORT.print(get_current());
-      UART0_DEBUG_PORT.print(";  Энергии потрачено = ");
-      UART0_DEBUG_PORT.print(get_total_energy());
-      UART0_DEBUG_PORT.print(" кВтч из = ");
-      UART0_DEBUG_PORT.print(payment.kWattPerHourAvailable);
-      UART0_DEBUG_PORT.println(" кВтч");
+      // UART0_DEBUG_PORT.print(" :   Текущая мощность, Вт: ");
+      // UART0_DEBUG_PORT.print(get_power());
+      // UART0_DEBUG_PORT.print(";  Текущее напряжение, В: ");
+      // UART0_DEBUG_PORT.print(get_voltage());
+      // UART0_DEBUG_PORT.print(";  Текущий ток, А: ");
+      // UART0_DEBUG_PORT.print(get_current());
+      // UART0_DEBUG_PORT.print(";  Энергии потрачено = ");
+      // UART0_DEBUG_PORT.print(get_total_energy());
+      // UART0_DEBUG_PORT.print(" кВтч из = ");
+      // UART0_DEBUG_PORT.print(payment.kWattPerHourAvailable);
+      // UART0_DEBUG_PORT.println(" кВтч");
 
       UART0_DEBUG_PORT.print("Статус оплаты = ");
-      UART0_DEBUG_PORT.print(payment.paymentStatus);
-      UART0_DEBUG_PORT.print("  Потрачено: ");
-      UART0_DEBUG_PORT.print(get_total_energy()*PRICE_FOR_ONE_KWHOUR);
-      UART0_DEBUG_PORT.print("  коп. из: ");
-      UART0_DEBUG_PORT.print(payment.paidMinor);
-      UART0_DEBUG_PORT.print(" коп.; на возврат: ");
-      UART0_DEBUG_PORT.print(refundAmount);
-      UART0_DEBUG_PORT.println(" коп.");
+      UART0_DEBUG_PORT.println(payment.paymentStatus);
+      // UART0_DEBUG_PORT.print("  Потрачено: ");
+      // UART0_DEBUG_PORT.print(get_total_energy()*PRICE_FOR_ONE_KWHOUR);
+      // UART0_DEBUG_PORT.print("  коп. из: ");
+      // UART0_DEBUG_PORT.print(payment.paidMinor);
+      // UART0_DEBUG_PORT.print(" коп.; на возврат: ");
+      // UART0_DEBUG_PORT.print(refundAmount);
+      // UART0_DEBUG_PORT.println(" коп.");
       debugTime = millis();
     }  
 
@@ -331,13 +331,14 @@ void charging_managment(){
       debugRefundTime = millis();
     }else if((get_power() < 3000) && (millis() - debugRefundTime > 3000) && (payment.kWattPerHourAvailable < get_total_energy())){
       payment.chargingStatus = WAITING_TO_CHARGE;
+      payment.paymentStatus = WAITING_PAYMENT;
     }
 
     if((payment.chargingStatus != payment.chargingStatusPrev)){
       switch (payment.chargingStatus)
       {
       case WAITING_TO_CHARGE:
-        digitalWrite(RELAY_PIN, HIGH);
+        digitalWrite(RELAY_PIN, LOW);
         break;
       case START_TO_CHARGE:
         reset_energy_counter();
